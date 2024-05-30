@@ -1,5 +1,0 @@
-libgcc_s_a-empty.o: ../../../../src/lib/stubs-gcc_s/empty.c \
- /usr/include/stdc-predef.h \
- /home/xjding/Projects/GPA/GPA/hpctoolkit/build/../src/include/gcc-attr.h
-/usr/include/stdc-predef.h:
-/home/xjding/Projects/GPA/GPA/hpctoolkit/build/../src/include/gcc-attr.h:

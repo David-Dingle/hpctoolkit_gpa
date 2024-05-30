@@ -1,6 +1,0 @@
-libhpcrun_o-disabled.o: ../../../../src/tool/hpcrun/disabled.c \
- /usr/include/stdc-predef.h ../../../../src/tool/hpcrun/disabled.h \
- /usr/lib/gcc/x86_64-linux-gnu/10/include/stdbool.h
-/usr/include/stdc-predef.h:
-../../../../src/tool/hpcrun/disabled.h:
-/usr/lib/gcc/x86_64-linux-gnu/10/include/stdbool.h:

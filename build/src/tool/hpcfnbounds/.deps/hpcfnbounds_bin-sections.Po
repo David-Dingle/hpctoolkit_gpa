@@ -1,4 +1,0 @@
-hpcfnbounds_bin-sections.o: ../../../../src/tool/hpcfnbounds/sections.cpp \
- /usr/include/stdc-predef.h ../../../../src/tool/hpcfnbounds/sections.h
-/usr/include/stdc-predef.h:
-../../../../src/tool/hpcfnbounds/sections.h:

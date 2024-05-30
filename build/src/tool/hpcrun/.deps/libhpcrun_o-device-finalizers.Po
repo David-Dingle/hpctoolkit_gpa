@@ -1,6 +1,0 @@
-libhpcrun_o-device-finalizers.o: \
- ../../../../src/tool/hpcrun/device-finalizers.c \
- /usr/include/stdc-predef.h \
- ../../../../src/tool/hpcrun/device-finalizers.h
-/usr/include/stdc-predef.h:
-../../../../src/tool/hpcrun/device-finalizers.h:

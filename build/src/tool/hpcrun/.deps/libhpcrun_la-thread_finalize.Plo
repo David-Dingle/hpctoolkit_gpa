@@ -1,5 +1,0 @@
-libhpcrun_la-thread_finalize.lo: \
- ../../../../src/tool/hpcrun/thread_finalize.c /usr/include/stdc-predef.h \
- ../../../../src/tool/hpcrun/thread_finalize.h
-/usr/include/stdc-predef.h:
-../../../../src/tool/hpcrun/thread_finalize.h:
