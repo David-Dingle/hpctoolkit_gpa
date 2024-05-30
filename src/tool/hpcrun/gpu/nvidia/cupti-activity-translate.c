@@ -220,8 +220,8 @@ convert_pcsampling
  CUpti_ActivityPCSamplingVersion *activity
 )
 {
-  TMSG(CUPTI_ACTIVITY, "source %u, functionId %u, pc 0x%x, corr %u, "
-	"samples %u, latencySamples %u, stallReason %u\n",
+  TMSG(CUPTI_ACTIVITY, "source %d, functionId %d, pc 0x%x, corr %d, "
+	"samples %d, latencySamples %d, stallReason %d\n",
 	activity->sourceLocatorId,
 	activity->functionId,
 	activity->pcOffset,
@@ -248,10 +248,10 @@ convert_pcsampling_record_info
  CUpti_ActivityPCSamplingRecordInfo *activity_info
 )
 {
-  TMSG(CUPTI_ACTIVITY, "corr %u, totalSamples %llu, droppedSamples %llu",
+  TMSG(CUPTI_ACTIVITY, "corr %u, totalSamples %d, droppedSamples %d",
    activity_info->correlationId,
-   (unsigned long long)activity_info->totalSamples,
-   (unsigned long long)activity_info->droppedSamples);
+   activity_info->totalSamples,
+   activity_info->droppedSamples);
   ga->kind = GPU_ACTIVITY_PC_SAMPLING_INFO;
 
   ga->details.pc_sampling_info.correlation_id = activity_info->correlationId;

@@ -168,7 +168,6 @@ data_motion_implicit_activities[] = {
 CUpti_ActivityKind
 kernel_invocation_activities[] = {
   CUPTI_ACTIVITY_KIND_KERNEL,
-  CUPTI_ACTIVITY_KIND_SYNCHRONIZATION,
   CUPTI_ACTIVITY_KIND_INVALID
 };
 

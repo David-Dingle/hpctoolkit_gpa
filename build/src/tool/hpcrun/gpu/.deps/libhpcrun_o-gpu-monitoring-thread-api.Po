@@ -1,0 +1,8 @@
+gpu/libhpcrun_o-gpu-monitoring-thread-api.o: \
+ ../../../../src/tool/hpcrun/gpu/gpu-monitoring-thread-api.c \
+ /usr/include/stdc-predef.h \
+ ../../../../src/tool/hpcrun/gpu/gpu-correlation-channel-set.h \
+ ../../../../src/tool/hpcrun/gpu/gpu-monitoring-thread-api.h
+/usr/include/stdc-predef.h:
+../../../../src/tool/hpcrun/gpu/gpu-correlation-channel-set.h:
+../../../../src/tool/hpcrun/gpu/gpu-monitoring-thread-api.h:

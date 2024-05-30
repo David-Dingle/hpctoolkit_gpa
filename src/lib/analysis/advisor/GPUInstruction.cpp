@@ -42,7 +42,7 @@ using std::string;
 #include <lib/xml/xml.hpp>
 #include <vector>
 
-#define DEBUG_CALLPATH_CUDAINSTRUCTION 0
+#define DEBUG_CALLPATH_CUDAINSTRUCTION 1
 
 namespace Analysis {
 
@@ -276,6 +276,7 @@ std::vector<GPUAdvisor::AdviceTuple> overlayGPUInstructionsMain(
 
     // Step 6: Make advise
     // Find each GPU calling context, make recommendation for each calling context
+    std::cout << "GPU kernel size: " << gpu_kernels.size() << std::endl;
     for (auto *gpu_kernel : gpu_kernels) {
       auto *gpu_root = dynamic_cast<Prof::CCT::ADynNode *>(gpu_kernel->parent());
 

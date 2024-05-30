@@ -1,0 +1,3 @@
+libHPCsupport_la-Logic.lo: ../../../../src/lib/support/Logic.cpp \
+ /usr/include/stdc-predef.h
+/usr/include/stdc-predef.h:

@@ -47,8 +47,8 @@ using std::string;
 #include <lib/support/StrUtil.hpp>
 #include <lib/xml/xml.hpp>
 
-#define DEBUG_GPUADVISOR 0
-#define DEBUG_GPUADVISOR_DETAILS 0
+#define DEBUG_GPUADVISOR 1
+#define DEBUG_GPUADVISOR_DETAILS 1
 
 #define MIN2(a, b) ((a > b) ? b : a)
 
@@ -146,12 +146,14 @@ KernelStats GPUAdvisor::readKernelStats(int mpi_rank, int thread_id) {
 }
 
 void GPUAdvisor::advise(const CCTBlames &cct_blames) {
+    std::cout << "Start advising" << std::endl;
   for (auto mpi_rank = 0; mpi_rank < _metric_name_prof_map->num_mpi_ranks(); ++mpi_rank) {
     // For each MPI process
     for (auto thread_id = 0; thread_id < _metric_name_prof_map->num_thread_ids(mpi_rank);
          ++thread_id) {
       // For each CPU thread
       if (_metric_name_prof_map->metric_id(mpi_rank, thread_id, _inst_metric) == -1) {
+          std::cout << "no inst" << std::endl;
         // Skip tracing threads
         continue;
       }

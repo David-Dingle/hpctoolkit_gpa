@@ -1,0 +1,5 @@
+libHPCprof_lean_la-placeholders.lo: \
+ ../../../../src/lib/prof-lean/placeholders.c /usr/include/stdc-predef.h \
+ ../../../src/include/hpctoolkit-config.h
+/usr/include/stdc-predef.h:
+../../../src/include/hpctoolkit-config.h:

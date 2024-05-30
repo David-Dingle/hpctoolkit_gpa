@@ -1,0 +1,4 @@
+libhpctoolkit_la-hpctoolkit.lo: ../../../../src/tool/hpcrun/hpctoolkit.c \
+ /usr/include/stdc-predef.h ../../../../src/tool/hpcrun/hpctoolkit.h
+/usr/include/stdc-predef.h:
+../../../../src/tool/hpcrun/hpctoolkit.h:

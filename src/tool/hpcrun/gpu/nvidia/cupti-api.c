@@ -201,6 +201,7 @@ typedef struct {
 
 typedef struct {
   uint32_t cubin_id;
+  uint32_t cubin_id_v12
 } hpctoolkit_cumod_st_t;
 
 
@@ -238,6 +239,7 @@ static __thread cct_node_t *cupti_kernel_ph = NULL;
 static bool cupti_correlation_enabled = false;
 static bool cupti_pc_sampling_enabled = false;
 static bool cupti_environment_enabled = false;
+static CUcontext cupti_pc_sampling_context = NULL;
 
 static cupti_correlation_callback_t cupti_correlation_callback =
   cupti_correlation_callback_dummy;
@@ -492,54 +494,55 @@ cupti_path
   void
 )
 {
-  const char *path = "libcupti.so";
-  int resolved = 0;
+  return "/usr/local/cuda/extras/CUPTI/lib64/libcupti.so";
+  //const char *path = "libcupti.so";
+  //int resolved = 0;
 
-  static char buffer[PATH_MAX];
-  buffer[0] = 0;
+  //static char buffer[PATH_MAX];
+  //buffer[0] = 0;
 
-  // open an NVIDIA library to find the CUDA path with dl_iterate_phdr
-  // note: a version of this file with a more specific name may
-  // already be loaded. thus, even if the dlopen fails, we search with
-  // dl_iterate_phdr.
-  void *h = monitor_real_dlopen("libcudart.so", RTLD_LOCAL | RTLD_LAZY);
+  //// open an NVIDIA library to find the CUDA path with dl_iterate_phdr
+  //// note: a version of this file with a more specific name may
+  //// already be loaded. thus, even if the dlopen fails, we search with
+  //// dl_iterate_phdr.
+  //void *h = monitor_real_dlopen("libcudart.so", RTLD_LOCAL | RTLD_LAZY);
 
-  if (dl_iterate_phdr(cuda_path, buffer)) {
-    // invariant: buffer contains CUDA home
-    int zero_index = strlen(buffer);
-    strcat(buffer, CUPTI_LIBRARY_LOCATION);
+  //if (dl_iterate_phdr(cuda_path, buffer)) {
+  //  // invariant: buffer contains CUDA home
+  //  int zero_index = strlen(buffer);
+  //  strcat(buffer, CUPTI_LIBRARY_LOCATION);
 
-    if (library_path_resolves(buffer)) {
-      path = buffer;
-      resolved = 1;
-    } else {
-      buffer[zero_index] = 0;
-      strcat(buffer, CUPTI_PATH_FROM_CUDA CUPTI_LIBRARY_LOCATION);
+  //  if (library_path_resolves(buffer)) {
+  //    path = buffer;
+  //    resolved = 1;
+  //  } else {
+  //    buffer[zero_index] = 0;
+  //    strcat(buffer, CUPTI_PATH_FROM_CUDA CUPTI_LIBRARY_LOCATION);
 
-      if (library_path_resolves(buffer)) {
-        path = buffer;
-        resolved = 1;
-      } else {
-        buffer[zero_index - 1] = 0;
-        fprintf(stderr, "NOTE: CUDA root at %s lacks a copy of NVIDIA's CUPTI "
-          "tools library.\n", buffer);
-      }
-    }
-  }
+  //    if (library_path_resolves(buffer)) {
+  //      path = buffer;
+  //      resolved = 1;
+  //    } else {
+  //      buffer[zero_index - 1] = 0;
+  //      fprintf(stderr, "NOTE: CUDA root at %s lacks a copy of NVIDIA's CUPTI "
+  //        "tools library.\n", buffer);
+  //    }
+  //  }
+  //}
 
-  if (!resolved) {
-    cupti_set_default_path(buffer);
-    if (library_path_resolves(buffer)) {
-      fprintf(stderr, "NOTE: Using builtin path for NVIDIA's CUPTI tools "
-        "library %s.\n", buffer);
-      path = buffer;
-      resolved = 1;
-    }
-  }
+  //if (!resolved) {
+  //  cupti_set_default_path(buffer);
+  //  if (library_path_resolves(buffer)) {
+  //    fprintf(stderr, "NOTE: Using builtin path for NVIDIA's CUPTI tools "
+  //      "library %s.\n", buffer);
+  //    path = buffer;
+  //    resolved = 1;
+  //  }
+  //}
 
-  if (h) monitor_real_dlclose(h);
+  //if (h) monitor_real_dlclose(h);
 
-  return path;
+  //return path;
 }
 
 #endif
@@ -555,6 +558,8 @@ cupti_bind
   hpcrun_force_dlopen(true);
   CHK_DLOPEN(cupti, cupti_path(), RTLD_NOW | RTLD_GLOBAL);
   hpcrun_force_dlopen(false);
+
+  TMSG(CUPTI, "cupti path %s", cupti_path());
 
 #define CUPTI_BIND(fn) \
   CHK_DLSYM(cupti, fn);
@@ -724,7 +729,7 @@ cupti_func_ip_resolve
   hpctoolkit_cufunc_st_t *cufunc = (hpctoolkit_cufunc_st_t *)(function);
   hpctoolkit_cumod_st_t *cumod = (hpctoolkit_cumod_st_t *)cufunc->cumod;
   uint32_t function_index = cufunc->function_index;
-  uint32_t cubin_id = cumod->cubin_id;
+  uint32_t cubin_id = cumod->cubin_id_v12;
   ip_normalized_t ip_norm = cubin_id_transform(cubin_id, function_index, 0);
   TMSG(CUPTI_TRACE, "Decode function_index %u cubin_id %u", function_index, cubin_id);
   return ip_norm;
@@ -944,6 +949,12 @@ cupti_subscriber_callback
     }
     bool is_kernel_op = gpu_op_placeholder_flags_is_set(gpu_op_placeholder_flags,
       gpu_placeholder_type_kernel);
+    //if (is_kernel_op) {
+    //  int pc_sampling_frequency = cupti_pc_sampling_frequency_get();
+    //  if (pc_sampling_frequency != -1) {
+    //    cupti_pc_sampling_enable(cd->context, pc_sampling_frequency);
+    //  }
+    //}
     // If we have a valid operation and is not in the interval of a cuda/ompt runtime api
     if (is_valid_op && !cupti_runtime_api_flag && !ompt_runtime_api_flag) {
       if (cd->callbackSite == CUPTI_API_ENTER) {
@@ -1363,11 +1374,17 @@ cupti_callbacks_subscribe
   HPCRUN_CUPTI_CALL(cuptiEnableDomain,
                    (1, cupti_subscriber, CUPTI_CB_DOMAIN_DRIVER_API));
 
+  TMSG(CUPTI, "enable domain driver");
+
   HPCRUN_CUPTI_CALL(cuptiEnableDomain,
                    (1, cupti_subscriber, CUPTI_CB_DOMAIN_RUNTIME_API));
 
+  TMSG(CUPTI, "enable domain runtime");
+
   HPCRUN_CUPTI_CALL(cuptiEnableDomain,
                    (1, cupti_subscriber, CUPTI_CB_DOMAIN_RESOURCE));
+
+  TMSG(CUPTI, "enable domain resource");
 }
 
 
@@ -1380,8 +1397,6 @@ cupti_callbacks_unsubscribe
   cupti_unload_callback = 0;
   cupti_correlation_callback = 0;
 
-  HPCRUN_CUPTI_CALL(cuptiUnsubscribe, (cupti_subscriber));
-
   HPCRUN_CUPTI_CALL(cuptiEnableDomain,
                    (0, cupti_subscriber, CUPTI_CB_DOMAIN_DRIVER_API));
 
@@ -1390,6 +1405,8 @@ cupti_callbacks_unsubscribe
 
   HPCRUN_CUPTI_CALL(cuptiEnableDomain,
                    (0, cupti_subscriber, CUPTI_CB_DOMAIN_RESOURCE));
+
+  HPCRUN_CUPTI_CALL(cuptiUnsubscribe, (cupti_subscriber));
 }
 
 
@@ -1431,26 +1448,35 @@ cupti_pc_sampling_enable
 )
 {
   TMSG(CUPTI, "enter cupti_pc_sampling_enable");
+
+  if (cupti_pc_sampling_enabled && cupti_pc_sampling_context == context)
+      return;
+  else if (cupti_pc_sampling_enabled)
+      cupti_pc_sampling_disable(context);
+
+  cupti_pc_sampling_context = context;
   cupti_pc_sampling_enabled = true;
   CUpti_ActivityPCSamplingConfig config;
-  config.samplingPeriod = 0;
-  config.samplingPeriod2 = frequency;
-  config.size = sizeof(config);
+  config.samplingPeriod = CUPTI_ACTIVITY_PC_SAMPLING_PERIOD_MIN;
+  config.samplingPeriod2 = 0;
+  config.size = sizeof(CUpti_ActivityPCSamplingConfig);
 
   int required;
   int retval = cuda_global_pc_sampling_required(&required);
 
-  if (retval == 0) { // only turn something on if success determining mode
+  //if (retval == 0) { // only turn something on if success determining mode
 
-    if (!required) {
-      HPCRUN_CUPTI_CALL(cuptiActivityConfigurePCSampling, (context, &config));
-
-      HPCRUN_CUPTI_CALL(cuptiActivityEnableContext,
-                        (context, CUPTI_ACTIVITY_KIND_PC_SAMPLING));
-     } else {
-      HPCRUN_CUPTI_CALL(cuptiActivityEnable, (CUPTI_ACTIVITY_KIND_PC_SAMPLING));
-     }
-  }
+  //  if (!required) {
+  //    TMSG(CUPTI, "Enable pc sampling with frequency %d", frequency);
+  //    // Unknown issues
+  //    HPCRUN_CUPTI_CALL(cuptiActivityConfigurePCSampling, (context, &config));
+  //    HPCRUN_CUPTI_CALL(cuptiActivityEnableContext,
+  //                      (context, CUPTI_ACTIVITY_KIND_PC_SAMPLING));
+  //   } else {
+  HPCRUN_CUPTI_CALL(cuptiActivityConfigurePCSampling, (context, &config));
+  HPCRUN_CUPTI_CALL(cuptiActivityEnable, (CUPTI_ACTIVITY_KIND_PC_SAMPLING));
+  //   }
+  //}
 
   TMSG(CUPTI, "exit cupti_pc_sampling_enable");
 }
@@ -1573,20 +1599,6 @@ cupti_device_init()
 {
   cupti_stop_flag = false;
   cupti_runtime_api_flag = false;
-
-  cupti_correlation_enabled = false;
-  cupti_pc_sampling_enabled = false;
-
-  cupti_correlation_callback = cupti_correlation_callback_dummy;
-
-  cupti_error_callback = cupti_error_callback_dummy;
-
-  cupti_activity_enabled.buffer_request = 0;
-  cupti_activity_enabled.buffer_complete = 0;
-
-  cupti_load_callback = 0;
-
-  cupti_unload_callback = 0;
 }
 
 
