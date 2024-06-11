@@ -162,6 +162,9 @@ CUPTI_INC_FLGS = @OPT_CUPTI_IFLAGS@
 CUPTI_LD_FLGS = @OPT_CUPTI_LDFLAGS@
 CUPTI_BASE = @OPT_CUPTI@
 
+TORCH_MONITOR_INC_FLGS = @OPT_TORCH_MONITOR_IFLAGS@
+TORCH_MONITOR_LD_FLGS = @OPT_TORCH_MONITOR_LDFLAGS@
+
 MPI_INC = @MPI_INC@
 MPI_PROTO_FILE = @MPI_PROTO_FILE@
 
@@ -499,7 +502,8 @@ MY_CUPTI_FILES = sample-sources/nvidia.c	\
 	gpu/nvidia/cupti-activity-translate.c	\
 	gpu/nvidia/cupti-analysis.c		\
 	gpu/nvidia/cupti-api.c			\
-	gpu/nvidia/cupti-gpu-api.c		
+	gpu/nvidia/cupti-gpu-api.c		\
+	torch_monitor_adaptor.c
 endif
 
 
@@ -535,6 +539,7 @@ MY_INCLUDE_DIRS =			\
 	-I$(HPCFNBOUNDS_INC)		\
         $(OPT_CUDA_IFLAGS)             \
         $(OPT_CUPTI_IFLAGS)             \
+		$(OPT_TORCH_MONITOR_IFLAGS)     \
 	-I$(LIBELF_INC)			\
 	-I$(LIBMONITOR_INC)
 
@@ -794,6 +799,11 @@ if HOST_CPU_PPC
   libhpcrun_o_CCASFLAGS  = $(AM_CCASFLAGS)
 endif
 
+if OPT_ENABLE_TORCH_MONITOR
+  libhpcrun_la_CPPFLAGS += $(TORCH_MONITOR_INC_FLGS)
+  libhpcrun_la_LDFLAGS  += $(TORCH_MONITOR_LD_FLGS)
+endif
+
 if HOST_CPU_X86_FAMILY
   libhpcrun_la_SOURCES  += $(MY_X86_FILES)
   libhpcrun_o_SOURCES   += $(MY_X86_FILES)
@@ -861,6 +871,9 @@ if OPT_ENABLE_CUPTI
   libhpcrun_la_SOURCES  += $(MY_CUPTI_FILES)
   libhpcrun_o_SOURCES   += $(MY_CUPTI_FILES)
   libhpcrun_la_CPPFLAGS += $(CUPTI_INC_FLGS)
+
+  libhpcrun_la_CPPFLAGS += $(TORCH_MONITOR_INC_FLGS)
+  libhpcrun_la_LDFLAGS  += $(TORCH_MONITOR_LD_FLGS)
 
   MY_CPP_DEFINES  += -DHPCRUN_SS_NVIDIA
 endif

@@ -82,6 +82,7 @@
 #include <hpcrun/hpcrun_stats.h>
 #include <hpcrun/main.h> // hpcrun_force_dlopen
 #include <hpcrun/safe-sampling.h>
+#include <hpcrun/torch_monitor_adaptor.h>
 
 #include <hpcrun/gpu/gpu-activity-channel.h>
 #include <hpcrun/gpu/gpu-application-thread-api.h>
@@ -201,7 +202,7 @@ typedef struct {
 
 typedef struct {
   uint32_t cubin_id;
-  uint32_t cubin_id_v12
+  uint32_t cubin_id_v12;
 } hpctoolkit_cumod_st_t;
 
 
@@ -1004,6 +1005,13 @@ cupti_subscriber_callback
         ensure_kernel_ip_present(ompt_trace_node, kernel_ip);
       }
     }
+
+    // assemble and log full PyTorch callback necessities(cct_node_id and Python States) into the file
+    uint64_t _correlation_id = gpu_correlation_id();
+    cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
+    int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
+    callpath_assemble(cct_persistent_id);
+
   } else if (domain == CUPTI_CB_DOMAIN_RUNTIME_API) {
     // stop flag is only set if a driver or runtime api called
     cupti_stop_flag_set();
@@ -1146,6 +1154,12 @@ cupti_subscriber_callback
       TMSG(CUPTI_TRACE, "Go through runtime with kernel_op %d, valid_op %d, "
         "cuda_runtime %d", is_kernel_op, is_valid_op, cupti_runtime_api_flag);
     }
+
+    // assemble and log full PyTorch callback necessities(cct_node_id and Python States) into the file
+    uint64_t _correlation_id = gpu_correlation_id();
+    cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
+    int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
+    callpath_assemble(cct_persistent_id);
   }
 }
 
@@ -1366,6 +1380,12 @@ cupti_callbacks_subscribe
   cupti_load_callback = cupti_load_callback_cuda;
   cupti_unload_callback = cupti_unload_callback_cuda;
   cupti_correlation_callback = gpu_application_thread_correlation_callback;
+
+  /**
+   * Enable torch-monitor-adaptor
+  */
+  adaptor_torch_monitor_enable();
+  adapter_get_id_register(gpu_correlation_id);
 
   HPCRUN_CUPTI_CALL(cuptiSubscribe, (&cupti_subscriber,
                    (CUpti_CallbackFunc) cupti_subscriber_callback,

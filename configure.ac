@@ -81,10 +81,7 @@ m4_include(config/hpc-cxxutils.m4)
 # Initialization:
 #----------------------------------------------------------------------------
 
-AC_INIT([hpctoolkit], [2020.07-develop],
-        [hpctoolkit-forum@rice.edu],
-	[hpctoolkit],
-	[http://hpctoolkit.org/])
+AC_INIT([hpctoolkit],[2020.07-develop],[hpctoolkit-forum@rice.edu],[hpctoolkit],[http://hpctoolkit.org/])
 AC_COPYRIGHT([Copyright (c) 2002-2020, Rice University.
 See the file README.License for details.])
 
@@ -99,7 +96,7 @@ AC_MSG_NOTICE([INFO: from user: MPICXX='${MPICXX}'])
 AC_MSG_NOTICE([INFO: from user: MPIF77='${MPIF77}'])
 
 # NOTE: please update config/README.version
-AC_PREREQ(2.69)
+AC_PREREQ([2.71])
 AM_INIT_AUTOMAKE(1.15.1)
 LT_PREREQ([2.4.6])
 
@@ -313,7 +310,10 @@ HPC_ENSURE_DEFINED_CFLAGS()
 AC_PROG_CXX(HPC_CXX_LIST)
 
 AC_PROG_CC(HPC_CC_LIST)
-AC_PROG_CC_C99()
+m4_warn([obsolete],
+[AC_PROG_CC_C99 is obsolete; use AC_PROG_CC
+])dnl
+AC_REQUIRE(AC_PROG_CC)
 if test "${ac_cv_prog_cc_c99}" = "no" ; then
   AC_MSG_ERROR([${CC} ${CFLAGS} does not support C99 mode!])
 fi
@@ -351,7 +351,15 @@ AC_MSG_NOTICE([*** Using C comiler for tests ***])
 AC_LANG([C])
 
 # Check for header files
-AC_HEADER_STDC()
+m4_warn([obsolete],
+[The preprocessor macro `STDC_HEADERS' is obsolete.
+  Except in unusual embedded environments, you can safely include all
+  ISO C90 headers unconditionally.])dnl
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_HEADERS(inttypes.h)
 
@@ -391,7 +399,15 @@ AC_MSG_NOTICE([*** Using C++ comiler for tests ***])
 AC_LANG([C++])
 
 # Check for header files
-#AC_HEADER_STDC()
+#m4_warn([obsolete],
+[The preprocessor macro `STDC_HEADERS' is obsolete.
+  Except in unusual embedded environments, you can safely include all
+  ISO C90 headers unconditionally.])dnl
+# Autoupdate added the next two lines to ensure that your configure
+# script's behavior did not change.  They are probably safe to remove.
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_HEADERS(inttypes.h)
 AC_CHECK_HEADERS(cxxabi.h)
@@ -1625,6 +1641,92 @@ AC_MSG_NOTICE([INFO: post hpc tests: MPICC='${MPICC}'])
 AC_MSG_NOTICE([INFO: post hpc tests: MPICXX='${MPICXX}'])
 AC_MSG_NOTICE([INFO: post hpc tests: MPIF77='${MPIF77}'])
 
+
+#-------------------------------------------------
+# Option: --with-torch-monitor=PATH
+#-------------------------------------------------
+OPT_HAVE_TORCH_MONITOR=no
+OPT_TORCH_MONITOR=
+OPT_TORCH_MONITOR_INCPATH=
+OPT_TORCH_MONITOR_IFLAGS=
+OPT_TORCH_MONITOR_LIBPATH=
+
+if test "${host_sizeof_voidp}" = "4"; then
+    TORCH_MONITOR_LIB_SEARCH_ORDER="lib32 lib"
+else
+    TORCH_MONITOR_LIB_SEARCH_ORDER="lib64 lib"
+fi
+
+AC_ARG_WITH([torch-monitor],
+  AS_HELP_STRING([--with-torch-monitor=PATH],
+                 [use given torch-monitor for PyTorch profiling]),
+  [if test $withval != no; then
+     OPT_HAVE_TORCH_MONITOR=yes
+     if ( echo "${withval}" | grep -v "^/" >/dev/null 2>&1 ); then
+       AC_MSG_ERROR([--with-torch-monitor requires absolute path as argument; given '${withval}'])
+     fi
+     OPT_TORCH_MONITOR=${withval}
+   fi])
+
+AC_MSG_CHECKING([for torch_monitor])
+
+#
+# Valid torch-monitor library
+#
+if test "$OPT_HAVE_TORCH_MONITOR" = yes; then
+    OPT_TORCH_MONITOR_IFLAGS="-I$OPT_TORCH_MONITOR/include"
+fi
+
+if test "$OPT_HAVE_TORCH_MONITOR" = "yes" ; then
+ AC_ARG_WITH([torch-monitor-include],
+  AS_HELP_STRING([--with-torch-monitor-include=PATH],
+                 [use given torch-monitor include (absolute path) with hpcrun (default is NO)]),
+  [if test $withval != no; then
+     if ( echo "${withval}" | grep -v "^/" >/dev/null 2>&1 ); then
+       AC_MSG_ERROR([--with-torch-monitor-include requires absolute path as argument; given '${withval}'])
+     fi
+     OPT_TORCH_MONITOR_INCPATH=${withval}
+  fi],
+
+     [if test -f ${OPT_TORCH_MONITOR}/include/torch_monitor.h; then
+         OPT_TORCH_MONITOR_INCPATH=${OPT_TORCH_MONITOR}/include
+         AC_DEFINE(HAVE_TORCH_MONITOR_H, 1, [torch-monitor include file available])
+     else
+         AC_MSG_ERROR(['${OPT_TORCH_MONITOR}/include/torch_monitor.h' not found])
+     fi])  
+
+  OPT_TORCH_MONITOR_IFLAGS="-I${OPT_TORCH_MONITOR_INCPATH} "
+
+  AC_ARG_WITH([torch-monitor-lib],
+  AS_HELP_STRING([--with-torch-monitor-lib=PATH],
+                 [use given torch-monitor lib (absolute path) with hpcrun (default is NO)]),
+  [if test $withval != no; then
+     if ( echo "${withval}" | grep -v "^/" >/dev/null 2>&1 ); then
+       AC_MSG_ERROR([--with-torch-monitor-lib requires absolute path as argument; given '${withval}'])
+     fi
+     OPT_TORCH_MONITOR_LIBPATH=${withval}
+   fi], 
+  
+    [if test -f "${OPT_TORCH_MONITOR}/lib/libtorch_monitor.so" 
+    then
+      OPT_TORCH_MONITOR_LIBPATH="${OPT_TORCH_MONITOR}/lib"
+      break
+    fi
+    if test  -z "${OPT_TORCH_MONITOR_LIBPATH}" ; then
+      AC_MSG_ERROR([libtorch_monitor.so not found])
+    fi
+   ] )
+
+  OPT_TORCH_MONITOR_LDFLAGS="-L${OPT_TORCH_MONITOR_LIBPATH} -Wl,-rpath=${OPT_TORCH_MONITOR_LIBPATH} -ltorch_monitor"
+fi
+
+AC_MSG_RESULT([$OPT_TORCH_MONITOR])
+
+AM_CONDITIONAL([OPT_ENABLE_TORCH_MONITOR], [test "$OPT_HAVE_TORCH_MONITOR" = yes])
+
+AC_SUBST([OPT_TORCH_MONITOR])
+AC_SUBST([OPT_TORCH_MONITOR_IFLAGS])
+AC_SUBST([OPT_TORCH_MONITOR_LDFLAGS])
 
 #-------------------------------------------------
 # Option: --enable-bgq
@@ -5029,7 +5131,7 @@ export_hpctoolkit="${srcdir}/config/export-hpctoolkit"
 
 AC_CONFIG_COMMANDS()
 
-AC_OUTPUT()
+AC_OUTPUT
 
 dnl # Hack to rename the scripts for a back-end build.
 dnl if test "$enable_back_end" = yes ; then
