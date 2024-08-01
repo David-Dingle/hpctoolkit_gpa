@@ -77,8 +77,9 @@ MYSOURCES = \
 	CallPath.hpp CallPath.cpp \
 	CallPath-MetricComponentsFact.hpp CallPath-MetricComponentsFact.cpp \
 	CallPath-CudaCFG.hpp CallPath-CudaCFG.cpp \
+	CallPath-TorchView.hpp CallPath-TorchView.cpp \
 	advisor/GPUAdvisor.hpp advisor/GPUAdvisor-Blame.cpp \
-  advisor/GPUAdvisor-Advise.cpp advisor/GPUAdvisor-Init.cpp \
+    advisor/GPUAdvisor-Advise.cpp advisor/GPUAdvisor-Init.cpp \
 	advisor/GPUOptimizer.hpp advisor/GPUOptimizer.cpp \
 	advisor/GPUInstruction.hpp advisor/GPUInstruction.cpp \
 	advisor/GPUArchitecture.hpp advisor/GPUArchitecture.cpp \

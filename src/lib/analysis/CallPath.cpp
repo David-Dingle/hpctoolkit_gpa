@@ -1232,6 +1232,23 @@ makeDatabase(Prof::CallPath::Profile& prof, const Analysis::Args& args)
   IOUtil::CloseStream(os);
 
   delete[] outBuf;
+
+  // added by xjding, for torch_view 
+  auto moveFiles = [&](const std::vector<string> &files) {
+    for (auto &file : files) {
+      auto pos = file.rfind("/");
+      if (pos == std::string::npos) {
+        continue;
+      }
+      auto file_name = file.substr(pos);
+      std::ifstream src(file, std::ios::binary);
+      std::ofstream dst(db_dir + file_name, std::ios::binary);
+      dst << src.rdbuf();
+    }
+  };
+
+  moveFiles(args.torchViewFiles);
+  // (end) added by xjding, for torch_view 
 }
 
 

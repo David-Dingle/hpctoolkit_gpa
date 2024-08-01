@@ -449,6 +449,28 @@ hpcrun_leftmost_child(cct_node_t* x)
   return leftmost;
 }
 
+cct_node_t* 
+hpcrun_rightmost_child(cct_node_t* x){
+  cct_node_t *rightmost = x->children;
+  if (rightmost != NULL) {
+    for (;;) {
+      cct_node_t *more_right = rightmost->right;
+      if (more_right == NULL) break;
+      rightmost = more_right;
+    }
+  }
+  return rightmost;
+}
+
+cct_node_t* 
+hpcrun_right_sibling(cct_node_t* x){
+  if (x != NULL){
+    return x->right;
+  } else {
+    return NULL;
+  }
+}
+
 int32_t
 hpcrun_cct_persistent_id(cct_node_t* x)
 {

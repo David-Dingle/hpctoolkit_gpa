@@ -52,4 +52,27 @@ EXTERNC adaptor_result_t python_state_get(size_t max_num_states, torch_monitor_p
  */
 EXTERNC adaptor_result_t callpath_assemble(int32_t cct_node_persistent_id);
 
+
+/**
+ * @brief Set up Call PAth output directory
+ * 
+ * @param dir Path to the output folder
+ * 
+ */
+EXTERNC adaptor_result_t adaptor_output_dir_config(const char *dir);
+
+
+/**
+ * @brief Close the file output stream;
+ * 
+*/
+EXTERNC adaptor_result_t adaptor_stream_close(void);
+
+
+/**
+ * @brief Open the file output stream;
+ * 
+*/
+EXTERNC adaptor_result_t adaptor_stream_open(void);
+
 #endif  // TORCH_MONITOR_ADAPTOR_H

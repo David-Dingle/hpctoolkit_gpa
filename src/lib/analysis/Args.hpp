@@ -143,6 +143,9 @@ public:
   // Profile files
   std::vector<std::string> profileFiles;
 
+  // Added by xjding
+  std::vector<std::string> torchViewFiles; // for torch_view
+
   bool doNormalizeTy;
 
   // -------------------------------------------------------

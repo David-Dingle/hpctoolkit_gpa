@@ -503,6 +503,12 @@ ArgsHPCProf::parse(int argc, const char* const argv[], AppType type)
       if (is_directory(nvidia_dir)) {
         find_files(instructionFiles, nvidia_dir, ".inst");
       }
+
+      // for torch_view by xjding
+      const std::string torch_view_dir = profileFiles[i] + "/torch_view";
+      if (is_directory(torch_view_dir)) {
+        find_files(torchViewFiles, torch_view_dir, ".csv");
+      }
     }
 
     // For now, parse first file name to determine name of database

@@ -93,6 +93,7 @@ namespace Prof {
 
 namespace CallPath {
 
+typedef std::map<uint32_t, CCT::ANode*> CCTIdToCCTNodeMap;
 
 class Profile
   : public Unique // non copyable

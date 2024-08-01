@@ -74,6 +74,7 @@ using std::string;
 
 #include "Args.hpp"
 
+#include <lib/analysis/CallPath-TorchView.hpp>  // for torch_view
 #include <lib/analysis/CallPath-CudaCFG.hpp>
 #include <lib/analysis/advisor/GPUInstruction.hpp>
 #include <lib/analysis/CallPath.hpp>
@@ -210,6 +211,9 @@ realmain(int argc, char* const* argv)
   Analysis::CallPath::overlayStaticStructureMain(*prof, args.agent,
 						 args.doNormalizeTy, printProgress);
 
+// INSERT 2
+  // Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles);
+
   const std::string sep = "**********************************************"
                            "********************************************";
 
@@ -228,7 +232,10 @@ realmain(int argc, char* const* argv)
   of.close();
 
   Analysis::CallPath::transformCudaCFGMain(*prof);
-  
+
+  // INSERT
+  Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles);
+
   // -------------------------------------------------------
   // 2a. Create summary metrics for canonical CCT
   // -------------------------------------------------------

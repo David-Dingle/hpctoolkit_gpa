@@ -67,6 +67,8 @@
 #define _GNU_SOURCE
 #include <link.h>          // dl_iterate_phdr
 #include <linux/limits.h>  // PATH_MAX
+#include <limits.h>    // PATH_MAX
+#include <sys/stat.h>  // mkdir
 #include <string.h>        // strstr
 #endif
 
@@ -763,6 +765,18 @@ ensure_kernel_ip_present
 }
 
 
+//-------------------------------------------------------------
+// callback controls
+//-------------------------------------------------------------
+static void
+output_dir_config(char *dir_name, char *suffix) {
+    size_t used = 0;
+    used += sprintf(&dir_name[used], "%s", hpcrun_files_output_directory());
+    used += sprintf(&dir_name[used], "%s", suffix);
+    mkdir(dir_name, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
+}
+
+
 static void
 cupti_subscriber_callback
 (
@@ -978,6 +992,12 @@ cupti_subscriber_callback
             gpu_op_ccts_get(&gpu_op_ccts, gpu_placeholder_type_kernel);
 
           ensure_kernel_ip_present(kernel_ph, kernel_ip);
+
+          // // Start Change
+          // int32_t cct_persistent_id = hpcrun_cct_persistent_id(api_node);
+          // // printf("%ld <-> %ld",(long)hpcrun_cct_persistent_id(api_node), (long)cct_persistent_id);
+          // callpath_assemble(cct_persistent_id);
+          // // End change
         }
 
         hpcrun_safe_exit();
@@ -1007,10 +1027,10 @@ cupti_subscriber_callback
     }
 
     // assemble and log full PyTorch callback necessities(cct_node_id and Python States) into the file
-    uint64_t _correlation_id = gpu_correlation_id();
-    cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
-    int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
-    callpath_assemble(cct_persistent_id);
+    // uint64_t _correlation_id = gpu_correlation_id();
+    // cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
+    // int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
+    // callpath_assemble(cct_persistent_id);
 
   } else if (domain == CUPTI_CB_DOMAIN_RUNTIME_API) {
     // stop flag is only set if a driver or runtime api called
@@ -1129,11 +1149,41 @@ cupti_subscriber_callback
         hpcrun_safe_enter();
 
         gpu_op_ccts_insert(api_node, &gpu_op_ccts, gpu_op_placeholder_flags_all);
+//start
+        hpcrun_cct_retain(api_node);
+//end 
+        // Start Change
+        // int32_t cct_persistent_id = hpcrun_cct_persistent_id(api_node);
+        // callpath_assemble(cct_persistent_id);
+        // cct_node_t *api_child = hpcrun_leftmost_child(api_node);
+        // for(; api_child != hpcrun_rightmost_child(api_node); api_child=hpcrun_right_sibling(api_child)){
+        //   int32_t cct_persistent_id = hpcrun_cct_persistent_id(api_child);
+        //   printf("%d\n", cct_persistent_id);
+        // }
+
+        // for(cct_node_t *api_child = hpcrun_leftmost_child(api_node); api_child != hpcrun_rightmost_child(api_node); api_child=hpcrun_right_sibling(api_child)){
+          
+        //   printf("Child Node is %d Leaf \n ", (int)(!hpcrun_cct_no_children(api_child)) );
+        //   if(!hpcrun_cct_no_children(api_child)){
+        //     printf("Has Children \n ");
+        //     cct_node_t *cubin_node = hpcrun_leftmost_child(api_child);
+        //     if (cubin_node) {
+        //       int32_t cct_persistent_id = hpcrun_cct_persistent_id(cubin_node);
+        //       callpath_assemble(cct_persistent_id);
+        //     }
+        //   } else {
+        //     printf("Else \n");
+        //   }
+        // }
+        // End change
 
         hpcrun_safe_exit();
 
         cupti_kernel_ph = gpu_op_ccts_get(&gpu_op_ccts, gpu_placeholder_type_kernel);
-
+//start
+        hpcrun_cct_retain(cupti_kernel_ph);
+        callpath_assemble(hpcrun_cct_persistent_id(cupti_kernel_ph));
+//end
         // Generate notification entry
         uint64_t cpu_submit_time = hpcrun_nanotime();
         gpu_correlation_channel_produce(correlation_id, &gpu_op_ccts,
@@ -1156,10 +1206,10 @@ cupti_subscriber_callback
     }
 
     // assemble and log full PyTorch callback necessities(cct_node_id and Python States) into the file
-    uint64_t _correlation_id = gpu_correlation_id();
-    cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
-    int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
-    callpath_assemble(cct_persistent_id);
+    // uint64_t _correlation_id = gpu_correlation_id();
+    // cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
+    // int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
+    // callpath_assemble(cct_persistent_id);
   }
 }
 
@@ -1384,6 +1434,10 @@ cupti_callbacks_subscribe
   /**
    * Enable torch-monitor-adaptor
   */
+  char dir_name[PATH_MAX];
+  output_dir_config(dir_name, "/torch_view/");
+  adaptor_output_dir_config(dir_name);
+  adaptor_stream_open();
   adaptor_torch_monitor_enable();
   adapter_get_id_register(gpu_correlation_id);
 
@@ -1416,6 +1470,8 @@ cupti_callbacks_unsubscribe
   cupti_load_callback = 0;
   cupti_unload_callback = 0;
   cupti_correlation_callback = 0;
+
+  adaptor_stream_close();
 
   HPCRUN_CUPTI_CALL(cuptiEnableDomain,
                    (0, cupti_subscriber, CUPTI_CB_DOMAIN_DRIVER_API));
