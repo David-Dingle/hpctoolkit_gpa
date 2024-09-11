@@ -211,9 +211,6 @@ realmain(int argc, char* const* argv)
   Analysis::CallPath::overlayStaticStructureMain(*prof, args.agent,
 						 args.doNormalizeTy, printProgress);
 
-// INSERT 2
-  // Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles);
-
   const std::string sep = "**********************************************"
                            "********************************************";
 
@@ -233,7 +230,6 @@ realmain(int argc, char* const* argv)
 
   Analysis::CallPath::transformCudaCFGMain(*prof);
 
-  // INSERT
   Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles);
 
   // -------------------------------------------------------

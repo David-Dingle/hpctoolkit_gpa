@@ -54,6 +54,7 @@
 #include <hpcrun/metrics.h>
 #include <hpcrun/safe-sampling.h>
 #include <hpcrun/thread_data.h>
+#include <hpcrun/torch_monitor_adaptor.h>
 
 #include "gpu-activity.h"
 #include "gpu-metrics.h"
@@ -255,6 +256,11 @@ gpu_metrics_attribute_pc_sampling
 
   gpu_pc_sampling_t *sinfo = &(activity->details.pc_sampling);
   cct_node_t *cct_node = activity->cct_node;
+
+  // mark the sampled node for retention as the leaf of a traced call path.
+  hpcrun_cct_retain(cct_node);
+  // assemble the Pytorch Python States, cct_node p_id(for callpath), and the sample lm_ip for instruction relocating
+  callpath_assemble(activity);
 
   uint64_t inst_count = sinfo->samples * sample_period;
 

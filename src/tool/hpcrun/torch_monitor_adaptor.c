@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <hpcrun/cct/cct.h>
 
 #include "torch_monitor_adaptor.h"
 
@@ -103,7 +105,8 @@ adaptor_result_t adaptor_stream_close(void){
   return TORCH_MONITOR_ADAPTOR_SUCCESS;
 }
 
-adaptor_result_t callpath_assemble(int32_t cct_node_persistent_id){
+// the real assembler function
+adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uintptr_t lm_ip){
   if (num_states == 0){
     return TORCH_MONITOR_ADAPTOR_SUCCESS;
   }
@@ -117,8 +120,19 @@ adaptor_result_t callpath_assemble(int32_t cct_node_persistent_id){
     fprintf(fp, "ctx_id\n");
     fprintf(fp, "%d\n",cct_node_persistent_id);
 
+    fprintf(fp, "lm_ip\n");
+    fprintf(fp, "%ld\n",lm_ip);
+
     fprintf(fp, "num_states\n");
     fprintf(fp, "%lu\n",num_states);
+
+    // malloc space for string concat
+    char* all_states;
+    char num_to_str[20];
+    if (num_states != 0){
+      all_states = (char*)malloc(4 * num_states * sizeof(char) * (strlen(python_states[0].file_name) + strlen(python_states[0].function_name)));
+      *all_states = '\0';
+    } // end
 
     for(int i = 0; i < num_states; i++){
       fprintf(fp, "file_name\n");
@@ -132,8 +146,22 @@ adaptor_result_t callpath_assemble(int32_t cct_node_persistent_id){
 
       fprintf(fp, "lineno\n");
       fprintf(fp, "%ld\n",python_states[i].lineno);
+
+      // start to print hashed pystates
+      strcat(all_states, python_states[i].file_name);
+      strcat(all_states, python_states[i].function_name);
+
+      sprintf(num_to_str, "%ld", python_states[i].function_first_lineno);
+      strcat(all_states, num_to_str);
+      sprintf(num_to_str, "%ld", python_states[i].lineno);
+      strcat(all_states, num_to_str);
+      // end
     }
-    fprintf(fp, "----------------\n\n");
+    fprintf(fp, "pystates_hash\n");
+    fprintf(fp, "%s\n",all_states);
+
+    free(all_states);
+    // fprintf(fp, "----------------\n\n");
 
     pthread_mutex_unlock(&mutex);
   } else {  //fp ==NULL
@@ -143,6 +171,20 @@ adaptor_result_t callpath_assemble(int32_t cct_node_persistent_id){
   }
 
   return TORCH_MONITOR_ADAPTOR_SUCCESS;
+}
+
+// the public interface
+adaptor_result_t callpath_assemble(gpu_activity_t * activity) {
+  // read instruction identifier
+  cct_node_t *cct_node = activity->cct_node;
+  int32_t cct_node_persistent_id = hpcrun_cct_persistent_id(cct_node);
+  gpu_pc_sampling_t *sinfo = &(activity->details.pc_sampling);
+  // uint16_t lm_id = sinfo->pc.lm_id;
+  uintptr_t lm_ip = sinfo->pc.lm_ip;
+  // void * ip = hpcrun_denormalize_ip(&(sinfo->pc));
+
+  // read 
+  return callpath_assemble_real(cct_node_persistent_id, lm_ip); // stores the pystates, cct_node_t identifier, and the sampled instruction IP offline, together
 }
 
 adaptor_result_t adaptor_output_dir_config(const char *dir) {

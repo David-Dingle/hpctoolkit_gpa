@@ -348,11 +348,11 @@ makeVMAmap(VmaVecMap & vmaMap, Prof::CCT::ANode * node)
 
       auto it = vmaMap.find(lmid);
       if (it != vmaMap.end()) {
-	vec = it->second;
+	      vec = it->second;
       }
       else {
-	vec = new VmaVec;
-	vmaMap[lmid] = vec;
+	      vec = new VmaVec;
+	      vmaMap[lmid] = vec;
       }
       vec->push_back(vma);
     }
@@ -457,13 +457,12 @@ overlayStaticStructureMain(Prof::CallPath::Profile& prof,
         const string& lm_nm = lm->name();
         Prof::Struct::LM* lmStrct = Prof::Struct::LM::demand(rootStrct, lm_nm);
 
-	VmaVec * vmaVec = NULL;
-	auto it = vmaMap.find(i);
-	if (it != vmaMap.end()) {
-	  vmaVec = it->second;
-	}
-
-	overlayStaticStructureMain(prof, lm, lmStrct, vmaVec, printProgress);
+	      VmaVec * vmaVec = NULL;
+	      auto it = vmaMap.find(i);
+	      if (it != vmaMap.end()) {
+	        vmaVec = it->second;
+	      }
+      	overlayStaticStructureMain(prof, lm, lmStrct, vmaVec, printProgress);
       }
       catch (const Diagnostics::Exception& x) {
         errors += "  " + x.what() + "\n";
@@ -665,6 +664,33 @@ overlayStaticStructure(Prof::CCT::ANode* node,
       
       n->structure(strct);
 
+      // XJ Ding debug starts
+      // for (VMAIntervalSet::iterator it1 = strct->vmaSet().begin();
+	    //       it1 != strct->vmaSet().end(); ++it1){
+      //   const VMAInterval& ival = *it1;
+      //   // std::cout << "beg: " << std::hex << (uint)ival.beg() << std::endl;
+      //   // std::cout << "end: " << std::hex <<(uint)ival.end() << std::endl;
+      //   std::cout << ival.toString() << std::endl;
+      // }
+
+      // Prof::CCT::ProcFrm *proc_frm = n->ancestorProcFrm();
+      // if (proc_frm != NULL) {
+      //   auto *strct = n->structure();
+      //   // if (strct->ancestorAlien()) {
+      //   //   auto alien_st = getInlineStack(strct);
+      //   //   for (auto &name : alien_st) {
+      //   //   // Get inline call stack
+      //   //     std::cout << "inline call stack: " << name << std::endl;
+      //   //   }
+      //   // }
+      //   auto *file_struct = strct->ancestorFile();
+      //   auto file_name = file_struct->name();
+      //   auto line = std::to_string(strct->begLine());
+      //   auto name = file_name + ":" + line + "\t <op>";
+      //   std::cout << name << std::endl;
+      // }
+      // xj Ding debug ends
+
       //strct->demandMetric(CallPath::Profile::StructMetricIdFlg) += 1.0;
 
       DIAG_MsgIf(0, "overlayStaticStructure: dyn (" << n_dyn->lmId() << ", " << hex << lm_ip << ") --> struct " << strct << dec << " " << strct->toStringMe());
@@ -684,6 +710,12 @@ overlayStaticStructure(Prof::CCT::ANode* node,
       // 3. Link 'n' to its parent
       n->unlink();
       n->link(scope_frame);
+
+      // // XJ Ding debug starts
+      // std::cout << strct->getScopeFileName() << std::endl;  // empty(just been initialized)
+      // std::cout << strct->getScopeLineNum() << std::endl;  // empty(just been initialized)
+      // // xj Ding debug ends
+
     }
     
     // ---------------------------------------------------
@@ -692,6 +724,12 @@ overlayStaticStructure(Prof::CCT::ANode* node,
     if (!n->isLeaf()) {
       overlayStaticStructure(n, loadmap_lm, lmStrct, lm);
     }
+          
+    // XJ Ding debug starts
+      // std::cout << strct->begVMA << std::endl;  // empty(just been initialized)
+      // std::cout << strct->endVMA << std::endl;  // empty(just been initialized)
+    // xj Ding debug ends
+
   }
 
   delete strctToCCTMap;

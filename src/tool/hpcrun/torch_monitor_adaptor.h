@@ -7,6 +7,7 @@
 #define EXTERNC
 #endif
 
+#include <hpcrun/gpu/gpu-activity.h> // struct gpu_activity_t, and gpu_pc_sampling_t are defined here
 #include <torch_monitor.h>
 
 
@@ -50,7 +51,17 @@ EXTERNC adaptor_result_t python_state_get(size_t max_num_states, torch_monitor_p
  * @param cct_node_persistent_id cct_node_t.persistent_id from cupti_api.c
  * 
  */
-EXTERNC adaptor_result_t callpath_assemble(int32_t cct_node_persistent_id);
+EXTERNC adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uintptr_t lm_ip);
+
+
+/**
+ * @brief Invoke this function at gpu_application_thread_process_activities inside cupti-api.c
+ * to assemble cct_node_t.persistent_id with Python states fetched by torch-monitor and log them in the file
+ * 
+ * @param activity we will need activity->cct_node, and activity->details.pc_sampling from the activity
+ * 
+ */
+EXTERNC adaptor_result_t callpath_assemble(gpu_activity_t * activity);
 
 
 /**

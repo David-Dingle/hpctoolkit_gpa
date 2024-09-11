@@ -42,7 +42,7 @@ using std::string;
 #include <lib/xml/xml.hpp>
 #include <vector>
 
-#define DEBUG_CALLPATH_CUDAINSTRUCTION 0
+#define DEBUG_CALLPATH_CUDAINSTRUCTION 1
 
 namespace Analysis {
 

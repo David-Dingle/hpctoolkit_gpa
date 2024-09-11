@@ -84,7 +84,7 @@
 #include <hpcrun/hpcrun_stats.h>
 #include <hpcrun/main.h> // hpcrun_force_dlopen
 #include <hpcrun/safe-sampling.h>
-#include <hpcrun/torch_monitor_adaptor.h>
+#include <hpcrun/torch_monitor_adaptor.h> // xjding: remove later; callpath assemble should be within gpu_application_thread_process_activities / gpu_activity_channel_consume / gpu_metrics_attribute_pc_sampling
 
 #include <hpcrun/gpu/gpu-activity-channel.h>
 #include <hpcrun/gpu/gpu-application-thread-api.h>
@@ -992,12 +992,6 @@ cupti_subscriber_callback
             gpu_op_ccts_get(&gpu_op_ccts, gpu_placeholder_type_kernel);
 
           ensure_kernel_ip_present(kernel_ph, kernel_ip);
-
-          // // Start Change
-          // int32_t cct_persistent_id = hpcrun_cct_persistent_id(api_node);
-          // // printf("%ld <-> %ld",(long)hpcrun_cct_persistent_id(api_node), (long)cct_persistent_id);
-          // callpath_assemble(cct_persistent_id);
-          // // End change
         }
 
         hpcrun_safe_exit();
@@ -1025,12 +1019,6 @@ cupti_subscriber_callback
         ensure_kernel_ip_present(ompt_trace_node, kernel_ip);
       }
     }
-
-    // assemble and log full PyTorch callback necessities(cct_node_id and Python States) into the file
-    // uint64_t _correlation_id = gpu_correlation_id();
-    // cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
-    // int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
-    // callpath_assemble(cct_persistent_id);
 
   } else if (domain == CUPTI_CB_DOMAIN_RUNTIME_API) {
     // stop flag is only set if a driver or runtime api called
@@ -1149,41 +1137,16 @@ cupti_subscriber_callback
         hpcrun_safe_enter();
 
         gpu_op_ccts_insert(api_node, &gpu_op_ccts, gpu_op_placeholder_flags_all);
-//start
-        hpcrun_cct_retain(api_node);
-//end 
-        // Start Change
-        // int32_t cct_persistent_id = hpcrun_cct_persistent_id(api_node);
-        // callpath_assemble(cct_persistent_id);
-        // cct_node_t *api_child = hpcrun_leftmost_child(api_node);
-        // for(; api_child != hpcrun_rightmost_child(api_node); api_child=hpcrun_right_sibling(api_child)){
-        //   int32_t cct_persistent_id = hpcrun_cct_persistent_id(api_child);
-        //   printf("%d\n", cct_persistent_id);
-        // }
-
-        // for(cct_node_t *api_child = hpcrun_leftmost_child(api_node); api_child != hpcrun_rightmost_child(api_node); api_child=hpcrun_right_sibling(api_child)){
-          
-        //   printf("Child Node is %d Leaf \n ", (int)(!hpcrun_cct_no_children(api_child)) );
-        //   if(!hpcrun_cct_no_children(api_child)){
-        //     printf("Has Children \n ");
-        //     cct_node_t *cubin_node = hpcrun_leftmost_child(api_child);
-        //     if (cubin_node) {
-        //       int32_t cct_persistent_id = hpcrun_cct_persistent_id(cubin_node);
-        //       callpath_assemble(cct_persistent_id);
-        //     }
-        //   } else {
-        //     printf("Else \n");
-        //   }
-        // }
-        // End change
-
+// start
+        // hpcrun_cct_retain(api_node);
+// end        
         hpcrun_safe_exit();
 
         cupti_kernel_ph = gpu_op_ccts_get(&gpu_op_ccts, gpu_placeholder_type_kernel);
-//start
-        hpcrun_cct_retain(cupti_kernel_ph);
-        callpath_assemble(hpcrun_cct_persistent_id(cupti_kernel_ph));
-//end
+// start        
+        // hpcrun_cct_retain(cupti_kernel_ph);
+        // callpath_assemble(hpcrun_cct_persistent_id(cupti_kernel_ph));
+// end
         // Generate notification entry
         uint64_t cpu_submit_time = hpcrun_nanotime();
         gpu_correlation_channel_produce(correlation_id, &gpu_op_ccts,
@@ -1204,12 +1167,6 @@ cupti_subscriber_callback
       TMSG(CUPTI_TRACE, "Go through runtime with kernel_op %d, valid_op %d, "
         "cuda_runtime %d", is_kernel_op, is_valid_op, cupti_runtime_api_flag);
     }
-
-    // assemble and log full PyTorch callback necessities(cct_node_id and Python States) into the file
-    // uint64_t _correlation_id = gpu_correlation_id();
-    // cct_node_t *cct_node = cupti_correlation_callback(_correlation_id);
-    // int32_t cct_persistent_id = hpcrun_cct_persistent_id(cct_node);
-    // callpath_assemble(cct_persistent_id);
   }
 }
 

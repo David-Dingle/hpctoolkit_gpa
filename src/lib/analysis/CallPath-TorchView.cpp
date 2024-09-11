@@ -159,6 +159,8 @@ namespace Analysis {
       uint64_t global_id;
       ctx_node_t ctx_node;
       int num_states;
+      std::size_t hash;
+      uintptr_t lm_ip;
       std::vector<python_context_t> python_contexts;
 
       Torch_View_Call_Path() = default;
@@ -178,6 +180,8 @@ namespace Analysis {
       bool is_function_name = false;
       bool is_function_first_lineno = false;
       bool is_lineno = false;
+      bool is_pystates_hash = false;
+      bool is_lm_ip = false;
       bool is_ctx_id = false;
 
       while (fileread >> word) {
@@ -189,6 +193,8 @@ namespace Analysis {
           is_function_name = false;
           is_function_first_lineno = false;
           is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = false;
           is_ctx_id = false;
 
           view_ctx_map.emplace_back();
@@ -196,11 +202,14 @@ namespace Analysis {
         }
 
         if (word == "num_states"){
+          is_id = false;
           is_num_states = true;
           is_file_name = false;
           is_function_name = false;
           is_function_first_lineno = false;
           is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = false;
           is_ctx_id = false;
 
           continue;
@@ -213,6 +222,8 @@ namespace Analysis {
           is_function_name = false;
           is_function_first_lineno = false;
           is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = false;
           is_ctx_id = false;
 
           view_ctx_map.back().python_contexts.emplace_back();
@@ -226,6 +237,8 @@ namespace Analysis {
           is_function_name = true;
           is_function_first_lineno = false;
           is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = false;
           is_ctx_id = false;
 
           continue;
@@ -238,6 +251,8 @@ namespace Analysis {
           is_function_name = false;
           is_function_first_lineno = true;
           is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = false;
           is_ctx_id = false;
 
           continue;
@@ -250,6 +265,36 @@ namespace Analysis {
           is_function_name = false;
           is_function_first_lineno = false;
           is_lineno = true;
+          is_pystates_hash = false;
+          is_lm_ip = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "pystates_hash"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = true;
+          is_lm_ip = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "lm_ip"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = true;
           is_ctx_id = false;
 
           continue;
@@ -262,6 +307,8 @@ namespace Analysis {
           is_function_name = false;
           is_function_first_lineno = false;
           is_lineno = false;
+          is_pystates_hash = false;
+          is_lm_ip = false;
           is_ctx_id = true;
 
           continue;
@@ -311,9 +358,20 @@ namespace Analysis {
 
           continue;
         }
+        if(is_pystates_hash) {
+          view_ctx_map.back().hash = (std::size_t)std::hash<std::string>{}(word);
+          // std::cout << "I SAW: " << word << std::endl;
+          continue;
+        }
+        if(is_lm_ip) {
+          view_ctx_map.back().lm_ip = (uintptr_t)std::stol(word);
+
+          continue;
+        }
         if(is_ctx_id) {
-          int32_t ctx = (int32_t)std::stol(word);
-          view_ctx_map.back().ctx_node.ctx_id = ctx;
+          view_ctx_map.back().ctx_node.ctx_id = (int32_t)std::stol(word);
+
+          continue;
         }
 
       }
@@ -501,14 +559,18 @@ namespace Analysis {
       std::ofstream out(file_name + ".context");
       for (auto& iter : ctx_node_map) {
         out << iter.global_id << ": " << std::endl;
-        out << iter.ctx_node.ctx_id << std::endl;
-        out << iter.ctx_node.context << std::endl;
         for (auto& piter : iter.python_contexts) {
-          out << piter.file_name << std::endl;
-          out << piter.function_name << std::endl;
-          out << piter.function_first_lineno << std::endl;
-          out << piter.lineno << std::endl;
+          // out << piter.file_name << std::endl;
+          // out << piter.function_name << std::endl;
+          // out << piter.function_first_lineno << std::endl;
+          // out << piter.lineno << std::endl;
+          out << "  " << piter.file_name << ":" << piter.function_name << ":" << piter.function_first_lineno << ":" << piter.lineno << std::endl;
         }
+        out << "pystates_hash: " << iter.hash << std::endl;
+        out << "ctx_id: " << iter.ctx_node.ctx_id << std::endl;
+        out << iter.ctx_node.context;
+        out << "lm_ip: " << iter.lm_ip << std::endl << std::endl;
+
       }
 
       out.close();
@@ -526,7 +588,7 @@ namespace Analysis {
       Prof::CallPath::CCTIdToCCTNodeMap cctNodeMap;
 
       Prof::CCT::ANodeIterator prof_it(prof.cct()->root(), NULL/*filter*/, false/*leavesOnly*/,
-                                       IteratorStack::PostOrder); // PreOrder
+                                       IteratorStack::PreOrder); // PreOrder
       for (Prof::CCT::ANode *n = NULL; (n = prof_it.current()); ++prof_it) {
         Prof::CCT::ADynNode* n_dyn = dynamic_cast<Prof::CCT::ADynNode*>(n);
         if (n_dyn) {
