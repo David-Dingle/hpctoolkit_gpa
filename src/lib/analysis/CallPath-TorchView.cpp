@@ -160,7 +160,8 @@ namespace Analysis {
       ctx_node_t ctx_node;
       int num_states;
       std::size_t hash;
-      uintptr_t lm_ip;
+      uint16_t lm_id = 0;
+      std::vector<std::pair<uintptr_t, uintptr_t>> lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>();
       std::vector<python_context_t> python_contexts;
 
       Torch_View_Call_Path() = default;
@@ -171,7 +172,8 @@ namespace Analysis {
 
 
 
-    static void read_memory_node(const std::string &file_name, VIEW_CTX_MAP &view_ctx_map) {
+    static void read_memory_node(const std::string &file_name, VIEW_CTX_MAP &view_ctx_map,
+                                std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
       std::ifstream fileread(file_name);
       std::string word;
       bool is_id = false;
@@ -181,8 +183,12 @@ namespace Analysis {
       bool is_function_first_lineno = false;
       bool is_lineno = false;
       bool is_pystates_hash = false;
+      bool is_cct_node_persistent_id = false;
+      bool is_lm_id = false;
       bool is_lm_ip = false;
       bool is_ctx_id = false;
+
+      int32_t current_ctx_persistent_id = 0;
 
       while (fileread >> word) {
 
@@ -194,6 +200,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -209,6 +217,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -223,6 +233,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -238,6 +250,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -252,6 +266,8 @@ namespace Analysis {
           is_function_first_lineno = true;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -266,6 +282,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = true;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -280,6 +298,40 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = true;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
+          is_lm_ip = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "cct_node_persistent_id"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_cct_node_persistent_id = true;
+          is_lm_id = false;
+          is_lm_ip = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "lm_id"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = true;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -294,6 +346,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = true;
           is_ctx_id = false;
 
@@ -308,6 +362,8 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
           is_lm_ip = false;
           is_ctx_id = true;
 
@@ -363,16 +419,45 @@ namespace Analysis {
           // std::cout << "I SAW: " << word << std::endl;
           continue;
         }
-        if(is_lm_ip) {
-          view_ctx_map.back().lm_ip = (uintptr_t)std::stol(word);
+
+        if(is_cct_node_persistent_id) {
+          current_ctx_persistent_id = (int32_t)std::stol(word);
 
           continue;
+        }
+        if(is_lm_id) {
+          for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
+              it->lm_id = (uint16_t)std::stol(word);
+
+              goto flag_outer;  // Be Careful !
+            }
+          }
+        }
+        if(is_lm_ip) {
+          for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
+              uintptr_t sample_pc = (uintptr_t)std::stol(word);
+              bool flag = false;
+              for(std::pair<VMA, VMA>& piter : (*blames)[it->lm_id]) {
+                if((uintptr_t)piter.second == sample_pc) {
+                  it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{(uintptr_t)piter.first, (uintptr_t)piter.second});
+                  flag = true;
+                }
+              }
+              if(!flag) {
+                it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{0, sample_pc});
+              }
+              goto flag_outer;
+            }
+          }
         }
         if(is_ctx_id) {
           view_ctx_map.back().ctx_node.ctx_id = (int32_t)std::stol(word);
 
           continue;
         }
+        flag_outer: ;
 
       }
       fileread.close();
@@ -555,9 +640,56 @@ namespace Analysis {
     }
 
 
-    static void outputContext(const std::string &file_name, const VIEW_CTX_MAP &ctx_node_map) {
+    static void outputContext(const std::string &file_name, VIEW_CTX_MAP &ctx_node_map,
+                              std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
+      // start find hot blames
+      std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, uint32_t>>> hot = std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, uint32_t>>>{};
+      for(auto & iter : ctx_node_map) {
+        if(hot.find(iter.lm_id) != hot.end()) {
+          hot[iter.lm_id] = std::vector<std::pair<VMA, uint32_t>> {};
+        }
+      }  // populate all the lm(s) we collected
+
+      for(auto& [lm_id, b_s]: (*blames) ){
+        for(auto& piter : (*blames)[lm_id]) {
+          bool find = false;
+          for(auto& hiter : hot[lm_id]) {
+            if(hiter.first == piter.first) {
+              hiter.second += 1;
+              find = true;
+            }
+          }
+          if(!find) {
+             hot[lm_id].emplace_back(piter.first, 1);
+          }
+        }
+      }  // count all the blamed pc(s)
+      
+      for(auto& [lm_id, b_c] : hot){
+        std::sort(b_c.begin(), b_c.end(),
+                  [](const std::pair<VMA, uint32_t>& a, const std::pair<VMA, uint32_t>& b){
+                    return a.second > b.second;
+                  } );
+      }  // sort blamed instruction by its counter value
+
+      // end find hot blames
+
       std::ofstream out(file_name + ".context");
+      // start print hot blames
+      for(auto& [lm, b_c] : hot){
+        out << "Load Module: " << lm << std::endl ;
+        for(auto& [b, c] : b_c){
+          out << b << ":" << c << " ";
+        }
+        out << std::endl;
+      }
+      out << "\n------------------------------------------------------------\n" << std::endl;
+      // end print hot blames
+
       for (auto& iter : ctx_node_map) {
+        if(iter.lm_id == 0) {
+          continue;
+        }
         out << iter.global_id << ": " << std::endl;
         for (auto& piter : iter.python_contexts) {
           // out << piter.file_name << std::endl;
@@ -568,9 +700,24 @@ namespace Analysis {
         }
         out << "pystates_hash: " << iter.hash << std::endl;
         out << "ctx_id: " << iter.ctx_node.ctx_id << std::endl;
-        out << iter.ctx_node.context;
-        out << "lm_ip: " << iter.lm_ip << std::endl << std::endl;
-
+        if(iter.lm_id != 0) {  // if PC info is available
+          out << "leaf lm_id: " << iter.lm_id << std::endl;
+        }
+        if(!iter.lm_ips.empty()) {
+          out << "lm_ip:"; 
+          std::sort(iter.lm_ips.begin(),
+                    iter.lm_ips.end(),
+                    [] (const std::pair<uintptr_t, uintptr_t> a, const std::pair<uintptr_t, uintptr_t> b)
+                       { return a.first < b.first; });
+          for(auto v : iter.lm_ips) {
+            if(v.first == 0) {
+              continue;
+            }
+            out << " " << v.first << "/" << v.second;
+          }
+          out << std::endl;
+        }
+        out << iter.ctx_node.context << std::endl;;
       }
 
       out.close();
@@ -578,13 +725,15 @@ namespace Analysis {
 
     static void finish(VIEW_CTX_MAP& ctx_node_map) {
       for(auto& iter : ctx_node_map) {
-        piter: iter.python_contexts.clear();
+        iter.python_contexts.clear();
       }
     }
 
 // VIEW_CTX_MAP view_ctx_map;
 
-    void analyzeTorchViewMain(Prof::CallPath::Profile &prof, const std::vector<std::string> &torchViewFiles) {
+    void analyzeTorchViewMain(Prof::CallPath::Profile &prof,
+                              const std::vector<std::string> &torchViewFiles,
+                              std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
       Prof::CallPath::CCTIdToCCTNodeMap cctNodeMap;
 
       Prof::CCT::ANodeIterator prof_it(prof.cct()->root(), NULL/*filter*/, false/*leavesOnly*/,
@@ -600,11 +749,11 @@ namespace Analysis {
 
         VIEW_CTX_MAP view_ctx_map;
 
-        read_memory_node(file, view_ctx_map);
+        read_memory_node(file, view_ctx_map, blames);
 
         matchCCTNode(cctNodeMap, view_ctx_map);
 
-        outputContext(file, view_ctx_map);
+        outputContext(file, view_ctx_map, blames);
 
         finish(view_ctx_map);
 

@@ -79,6 +79,8 @@ using std::string;
 #include <lib/analysis/advisor/GPUInstruction.hpp>
 #include <lib/analysis/CallPath.hpp>
 #include <lib/analysis/Util.hpp>
+#include <lib/binutils/VMAInterval.hpp>
+#include <lib/prof/LoadMap.hpp>
 
 #include <lib/support/diagnostics.h>
 #include <lib/support/RealPathMgr.hpp>
@@ -206,7 +208,13 @@ realmain(int argc, char* const* argv)
   bool printProgress = true;
 
   // Static instruction overlay should be down before stmt coalesce 
-  auto advice = Analysis::CallPath::overlayGPUInstructionsMain(*prof, args.instructionFiles, args.gpuArch);
+
+  // Start change
+  // use a pair object to store <blame_inst, stall_inst>
+  std::map<uint, std::vector<std::pair<VMA, VMA>>> blames = std::map<uint, std::vector<std::pair<VMA, VMA>>>{};
+  // end change
+
+  auto advice = Analysis::CallPath::overlayGPUInstructionsMain(*prof, args.instructionFiles, args.gpuArch, &blames);
 
   Analysis::CallPath::overlayStaticStructureMain(*prof, args.agent,
 						 args.doNormalizeTy, printProgress);
@@ -230,7 +238,17 @@ realmain(int argc, char* const* argv)
 
   Analysis::CallPath::transformCudaCFGMain(*prof);
 
-  Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles);
+  // start change
+  std::cout << "Shift blames: " << blames.size() << std::endl;
+  for(const auto& [lm_id, ip_pairs]: blames) {
+    std::cout << lm_id << " ";
+    for(auto pair : ip_pairs) {
+      std::cout << pair.first << " : " << pair.second << std::endl;
+    }
+  }
+
+  // end change
+  Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles, &blames);
 
   // -------------------------------------------------------
   // 2a. Create summary metrics for canonical CCT

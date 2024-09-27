@@ -76,8 +76,9 @@
 
 #include <include/uint.h>
 
+#include <lib/analysis/advisor/GPUInstruction.hpp>
 #include <lib/binutils/LM.hpp>
-
+#include <lib/binutils/VMAInterval.hpp>
 #include <lib/prof/CallPath-Profile.hpp>
 #include <lib/prof/Struct-Tree.hpp>
 
@@ -86,7 +87,9 @@ namespace Analysis {
 
   namespace CallPath {
 
-    void analyzeTorchViewMain(Prof::CallPath::Profile &prof, const std::vector<std::string> &torchViewFiles);
+    void analyzeTorchViewMain(Prof::CallPath::Profile &prof,
+                              const std::vector<std::string> &torchViewFiles,
+                              std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames);
 
   } // namespace CallPath
 

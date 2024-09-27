@@ -206,7 +206,8 @@ static void associateInstStmts(const std::vector<VMAStmt> &vma_stmts,
 
 std::vector<GPUAdvisor::AdviceTuple> overlayGPUInstructionsMain(
     Prof::CallPath::Profile &prof, const std::vector<std::string> &instruction_files,
-    const std::string &gpu_arch) {
+    const std::string &gpu_arch,
+    std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames) {
   auto *mgr = prof.metricMgr();
   MetricNameProfMap metric_name_prof_map(mgr);
   metric_name_prof_map.init();
@@ -287,7 +288,7 @@ std::vector<GPUAdvisor::AdviceTuple> overlayGPUInstructionsMain(
       CCTBlames cct_blames;
 
       // Blame latencies
-      gpu_advisor.blame(cct_blames);
+      gpu_advisor.blame(cct_blames, blames);
 
       // Make advise for the calling context and cache result
       gpu_advisor.advise(cct_blames);

@@ -78,6 +78,7 @@
 #include <lib/cuda/AnalyzeInstruction.hpp>
 #include <lib/cuda/DotCFG.hpp>
 #include <lib/prof/CallPath-Profile.hpp>
+#include <lib/prof/LoadMap.hpp>
 #include <lib/prof/Struct-Tree.hpp>
 
 #include "../CCTGraph.hpp"
@@ -112,7 +113,7 @@ class GPUAdvisor {
 
   void configGPURoot(Prof::CCT::ADynNode *gpu_root, Prof::CCT::ADynNode *gpu_kernel);
 
-  void blame(CCTBlames &cct_blames);
+  void blame(CCTBlames &cct_blames, std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames);
 
   void advise(const CCTBlames &cct_blames);
 
@@ -225,7 +226,8 @@ class GPUAdvisor {
   std::pair<std::string, std::string> detailizeMemBlame(CudaParse::InstructionStat *from_inst);
 
   void blameCCTDepGraph(int mpi_rank, int thread_id, CCTGraph<Prof::CCT::ADynNode *> &cct_dep_graph,
-                        CCTEdgePathMap &cct_edge_path_map, InstBlames &inst_blames);
+                        CCTEdgePathMap &cct_edge_path_map, InstBlames &inst_blames,
+                        std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames);
 
   void detailizeInstBlames(InstBlames &inst_blames);
 

@@ -64,6 +64,8 @@
 #include <hpcrun/gpu/gpu-function-id-map.h>
 #include <hpcrun/gpu/gpu-host-correlation-map.h>
 #include <hpcrun/hpcrun_stats.h>
+#include <hpcrun/torch_monitor_adaptor.h>
+#include <hpcrun/cct/cct.h>
 
 
 
@@ -247,6 +249,12 @@ gpu_sample_process
         PRINT("cct_child %p\n", cct_child);
         attribute_activity(host_op_entry, sample, cct_child);
       }
+
+      // mark the sampled node for retention as the leaf of a traced call path.
+      hpcrun_cct_retain(host_op_node);
+      // assemble the Pytorch Python States, cct_node p_id(for callpath), and the sample lm_ip for instruction relocating
+      callpath_assemble(sample, host_op_node);  
+
     } else {
       PRINT("host_map_entry %lu not found\n", external_id);
     }

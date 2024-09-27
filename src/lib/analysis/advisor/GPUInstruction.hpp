@@ -14,6 +14,7 @@
 
 #include <lib/binutils/LM.hpp>
 #include <lib/prof/CallPath-Profile.hpp>
+#include <lib/prof/LoadMap.hpp>
 #include <lib/prof/Struct-Tree.hpp>
 
 #include "GPUAdvisor.hpp"
@@ -24,7 +25,8 @@ namespace CallPath {
 
 std::vector<GPUAdvisor::AdviceTuple> overlayGPUInstructionsMain(
     Prof::CallPath::Profile &prof, const std::vector<std::string> &instruction_files,
-    const std::string &gpu_arch);
+    const std::string &gpu_arch,
+    std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames);
 
 }
 

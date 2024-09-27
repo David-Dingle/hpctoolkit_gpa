@@ -1407,7 +1407,8 @@ double GPUAdvisor::computePredTrue(int mpi_rank, int thread_id, CudaParse::Instr
 
 void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
                                   CCTGraph<Prof::CCT::ADynNode *> &cct_dep_graph,
-                                  CCTEdgePathMap &cct_edge_path_map, InstBlames &inst_blames) {
+                                  CCTEdgePathMap &cct_edge_path_map, InstBlames &inst_blames,
+                                  std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames) {
   auto mem_stall_metric_index =
       _metric_name_prof_map->metric_id(mpi_rank, thread_id, _mem_dep_stall_metric);
   auto exec_stall_metric_index =
@@ -1461,6 +1462,13 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
         } else {
           prof_nodes[exec_lat_metric_index].push_back(from_node);
         }
+        // Start change
+        std::cout << "from LM: " << from_node->lmId() << std::endl;
+        std::cout << "from vma: " << from_node->lmIP() << std::endl;
+        std::cout << "stall vma: " << to_node->lmIP() << std::endl;
+        // "balames" is typed as: std::map<LMIP_t, std::vector<std::pair<VMA, VMA>>>
+        (*blames)[from_node->lmId()].emplace_back(from_node->lmIP(), to_node->lmIP());
+        // end change
       }
     }
 
@@ -1570,6 +1578,13 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
 
         efficiency[from_node] = computeEfficiency(mpi_rank, thread_id, from_inst, from_node);
         pred_true[from_node] = computePredTrue(mpi_rank, thread_id, from_inst, from_node);
+        // // Start change
+        // std::cout << "from LM: " << from_node->lmId() << std::endl;
+        // std::cout << "from vma: " << from_node->lmIP() << std::endl;
+        // std::cout << "stall vma: " << to_node->lmIP() << std::endl;
+        // // "balames" is typed as: std::map<LMIP_t, std::vector<std::pair<VMA, VMA>>>
+        // (*blames)[from_node->lmId()].emplace_back(from_node->lmIP(), to_node->lmIP());
+        // // end change
       }
 
       // More insts, less instructions apportioned
@@ -1747,7 +1762,7 @@ void GPUAdvisor::overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_
             InstructionBlameStallComparator());
 }
 
-void GPUAdvisor::blame(CCTBlames &cct_blames) {
+void GPUAdvisor::blame(CCTBlames &cct_blames, std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
   // For each MPI process
   for (auto mpi_rank = 0; mpi_rank < _metric_name_prof_map->num_mpi_ranks(); ++mpi_rank) {
     // For each CPU thread
@@ -1897,7 +1912,7 @@ void GPUAdvisor::blame(CCTBlames &cct_blames) {
       // 3. Accumulate blames and record significant pairs and paths
       // Apportion based on block latency coverage and def inst issue count
       InstBlames inst_blames;
-      blameCCTDepGraph(mpi_rank, thread_id, cct_dep_graph, cct_edge_path_map, inst_blames);
+      blameCCTDepGraph(mpi_rank, thread_id, cct_dep_graph, cct_edge_path_map, inst_blames, blames);
 
       // 5. Overlay blames
       auto &kernel_blame = cct_blames[mpi_rank][thread_id];

@@ -106,9 +106,9 @@ adaptor_result_t adaptor_stream_close(void){
 }
 
 // the real assembler function
-adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uintptr_t lm_ip){
+adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id) {   //}, uintptr_t lm_ip){
   if (num_states == 0){
-    return TORCH_MONITOR_ADAPTOR_SUCCESS;
+    return TORCH_MONITOR_ADAPTOR_ERROR;
   }
   
   pthread_mutex_lock(&mutex);
@@ -119,9 +119,6 @@ adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uintptr_
 
     fprintf(fp, "ctx_id\n");
     fprintf(fp, "%d\n",cct_node_persistent_id);
-
-    fprintf(fp, "lm_ip\n");
-    fprintf(fp, "%ld\n",lm_ip);
 
     fprintf(fp, "num_states\n");
     fprintf(fp, "%lu\n",num_states);
@@ -174,17 +171,34 @@ adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uintptr_
 }
 
 // the public interface
-adaptor_result_t callpath_assemble(gpu_activity_t * activity) {
+adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_op_node) {
   // read instruction identifier
-  cct_node_t *cct_node = activity->cct_node;
-  int32_t cct_node_persistent_id = hpcrun_cct_persistent_id(cct_node);
+  int32_t cct_node_persistent_id = hpcrun_cct_persistent_id(host_op_node);
   gpu_pc_sampling_t *sinfo = &(activity->details.pc_sampling);
-  // uint16_t lm_id = sinfo->pc.lm_id;
-  uintptr_t lm_ip = sinfo->pc.lm_ip;
-  // void * ip = hpcrun_denormalize_ip(&(sinfo->pc));
+  // cct_node = gpu_application_thread_correlation_callback(sinfo->correlation_id);  // don't work in consumer functions
+  uint16_t lm_id = sinfo->pc.lm_id;
+  uintptr_t lm_ip = sinfo->pc.lm_ip;  // Test setting 1
 
-  // read 
-  return callpath_assemble_real(cct_node_persistent_id, lm_ip); // stores the pystates, cct_node_t identifier, and the sampled instruction IP offline, together
+  printf("Sampled Info: \n");
+  hpcrun_cct_retain(host_op_node);
+  callpath_assemble_real(cct_node_persistent_id);
+
+  pthread_mutex_lock(&mutex);
+  if (fp != NULL){
+    fprintf(fp, "cct_node_persistent_id\n");
+    fprintf(fp, "%d\n", cct_node_persistent_id);
+
+    fprintf(fp, "lm_id\n");
+    fprintf(fp, "%u\n",lm_id);
+
+    fprintf(fp, "lm_ip\n");
+    fprintf(fp, "%ld\n",lm_ip);
+  } else {
+    return TORCH_MONITOR_ADAPTOR_ERROR;
+  }
+  pthread_mutex_unlock(&mutex);
+
+  return TORCH_MONITOR_ADAPTOR_SUCCESS;
 }
 
 adaptor_result_t adaptor_output_dir_config(const char *dir) {
