@@ -42,7 +42,7 @@ using std::string;
 #include <lib/xml/xml.hpp>
 #include <vector>
 
-#define DEBUG_CALLPATH_CUDAINSTRUCTION 1
+#define DEBUG_CALLPATH_CUDAINSTRUCTION 0
 
 namespace Analysis {
 
@@ -207,7 +207,7 @@ static void associateInstStmts(const std::vector<VMAStmt> &vma_stmts,
 std::vector<GPUAdvisor::AdviceTuple> overlayGPUInstructionsMain(
     Prof::CallPath::Profile &prof, const std::vector<std::string> &instruction_files,
     const std::string &gpu_arch,
-    std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames) {
+    blamed_pc_pairs_t* blames) {
   auto *mgr = prof.metricMgr();
   MetricNameProfMap metric_name_prof_map(mgr);
   metric_name_prof_map.init();

@@ -1408,7 +1408,7 @@ double GPUAdvisor::computePredTrue(int mpi_rank, int thread_id, CudaParse::Instr
 void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
                                   CCTGraph<Prof::CCT::ADynNode *> &cct_dep_graph,
                                   CCTEdgePathMap &cct_edge_path_map, InstBlames &inst_blames,
-                                  std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames) {
+                                  blamed_pc_pairs_t* blames) {
   auto mem_stall_metric_index =
       _metric_name_prof_map->metric_id(mpi_rank, thread_id, _mem_dep_stall_metric);
   auto exec_stall_metric_index =
@@ -1463,11 +1463,8 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
           prof_nodes[exec_lat_metric_index].push_back(from_node);
         }
         // Start change
-        std::cout << "from LM: " << from_node->lmId() << std::endl;
-        std::cout << "from vma: " << from_node->lmIP() << std::endl;
-        std::cout << "stall vma: " << to_node->lmIP() << std::endl;
         // "balames" is typed as: std::map<LMIP_t, std::vector<std::pair<VMA, VMA>>>
-        (*blames)[from_node->lmId()].emplace_back(from_node->lmIP(), to_node->lmIP());
+        // (*blames)[from_node->lmId()].emplace_back(from_node->lmIP(), to_node->lmIP());
         // end change
       }
     }
@@ -1578,13 +1575,6 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
 
         efficiency[from_node] = computeEfficiency(mpi_rank, thread_id, from_inst, from_node);
         pred_true[from_node] = computePredTrue(mpi_rank, thread_id, from_inst, from_node);
-        // // Start change
-        // std::cout << "from LM: " << from_node->lmId() << std::endl;
-        // std::cout << "from vma: " << from_node->lmIP() << std::endl;
-        // std::cout << "stall vma: " << to_node->lmIP() << std::endl;
-        // // "balames" is typed as: std::map<LMIP_t, std::vector<std::pair<VMA, VMA>>>
-        // (*blames)[from_node->lmId()].emplace_back(from_node->lmIP(), to_node->lmIP());
-        // // end change
       }
 
       // More insts, less instructions apportioned
@@ -1624,6 +1614,18 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
           metric_name = detailizeExecBlame(from_inst, to_inst);
         } else {
           metric_name = detailizeMemBlame(from_inst);
+          // Start change
+
+          int from_func_addr = _vma_prop_map.at(from_vma).function->address;
+          int to_func_addr = _vma_prop_map.at(to_node->lmIP()).function->address;
+          VMA from_pcOffset = from_inst->pc - (from_func_addr);
+          VMA to_pcOffset = to_inst->pc - (to_func_addr);
+          
+          std::cout << "from_inst pc: " << std::dec << from_pcOffset << " Func_id: " << from_func_addr << ": " << _vma_prop_map.at(from_vma).function->name << std::dec << std::endl;
+          std::cout << "to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+
+          (*blames)[from_node->lmId()][from_func_addr].emplace_back(from_pcOffset, to_pcOffset);
+          // end change
         }
 
         auto stall_blame_name = "BLAME " + metric_name.first;
@@ -1762,7 +1764,7 @@ void GPUAdvisor::overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_
             InstructionBlameStallComparator());
 }
 
-void GPUAdvisor::blame(CCTBlames &cct_blames, std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
+void GPUAdvisor::blame(CCTBlames &cct_blames, blamed_pc_pairs_t* blames) {
   // For each MPI process
   for (auto mpi_rank = 0; mpi_rank < _metric_name_prof_map->num_mpi_ranks(); ++mpi_rank) {
     // For each CPU thread

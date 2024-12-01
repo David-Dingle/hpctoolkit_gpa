@@ -91,6 +91,12 @@
 
 //****************************************************************************
 
+//*******Start Declarations for CallPath-Torch_View.XXX */
+typedef std::pair<VMA, VMA> pc_pair_t;
+typedef std::map<uint64_t, std::vector<pc_pair_t>> function_pcs_t;
+typedef std::map<uint64_t, function_pcs_t> blamed_pc_pairs_t;
+//*******End Declarations for CallPath-Torch_View.XXX */
+
 namespace Analysis {
 
 class GPUAdvisor {
@@ -113,7 +119,7 @@ class GPUAdvisor {
 
   void configGPURoot(Prof::CCT::ADynNode *gpu_root, Prof::CCT::ADynNode *gpu_kernel);
 
-  void blame(CCTBlames &cct_blames, std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames);
+  void blame(CCTBlames &cct_blames, blamed_pc_pairs_t* blames);
 
   void advise(const CCTBlames &cct_blames);
 
@@ -227,7 +233,7 @@ class GPUAdvisor {
 
   void blameCCTDepGraph(int mpi_rank, int thread_id, CCTGraph<Prof::CCT::ADynNode *> &cct_dep_graph,
                         CCTEdgePathMap &cct_edge_path_map, InstBlames &inst_blames,
-                        std::map<uint, std::vector<std::pair<VMA, VMA>>>* blames);
+                        blamed_pc_pairs_t* blames);
 
   void detailizeInstBlames(InstBlames &inst_blames);
 

@@ -189,7 +189,9 @@ set_gpu_instruction_fields
 {
   gpu_correlation_id_map_entry_t *cid_map_entry =
     gpu_correlation_id_map_lookup(activity_correlation_id);
-  assert(cid_map_entry);
+  // assert(cid_map_entry);
+  if(!cid_map_entry)
+    return;
 
   uint64_t host_correlation_id =
     gpu_correlation_id_map_entry_external_id_get(cid_map_entry);
@@ -238,6 +240,9 @@ convert_pcsampling
   ga->details.pc_sampling.stallReason = convert_stall_type(activity->stallReason);
   ga->details.pc_sampling.samples = activity->samples;
   ga->details.pc_sampling.latencySamples = activity->latencySamples;
+    // add function_id, and pc_offset info
+  ga->details.pc_sampling.function_id = activity->functionId;
+  ga->details.pc_sampling.pc_offset = activity->pcOffset;
 }
 
 

@@ -82,6 +82,9 @@
 #include <lib/prof/CallPath-Profile.hpp>
 #include <lib/prof/Struct-Tree.hpp>
 
+// typedef std::pair<VMA, VMA> pc_pair_t;
+// typedef std::map<uint64_t, std::vector<pc_pair_t>> function_pcs_t;
+// typedef std::map<uint64_t, function_pcs_t> blamed_pc_pairs_t;
 
 namespace Analysis {
 
@@ -89,7 +92,7 @@ namespace Analysis {
 
     void analyzeTorchViewMain(Prof::CallPath::Profile &prof,
                               const std::vector<std::string> &torchViewFiles,
-                              std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames);
+                              blamed_pc_pairs_t* blames);
 
   } // namespace CallPath
 

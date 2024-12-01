@@ -5131,7 +5131,7 @@ export_hpctoolkit="${srcdir}/config/export-hpctoolkit"
 
 AC_CONFIG_COMMANDS()
 
-AC_OUTPUT
+AC_OUTPUT()
 
 dnl # Hack to rename the scripts for a back-end build.
 dnl if test "$enable_back_end" = yes ; then

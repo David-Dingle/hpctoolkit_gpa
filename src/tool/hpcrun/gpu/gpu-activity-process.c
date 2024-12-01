@@ -215,6 +215,10 @@ gpu_sample_process
  gpu_activity_t* sample
 )
 {
+  if(sample->details.pc_sampling.stallReason != GPU_INST_STALL_GMEM && sample->details.pc_sampling.stallReason != GPU_INST_STALL_MEM_THROTTLE){
+    return;
+  }
+
   uint32_t correlation_id = sample->details.pc_sampling.correlation_id;
 
   gpu_correlation_id_map_entry_t *cid_map_entry =
@@ -250,10 +254,8 @@ gpu_sample_process
         attribute_activity(host_op_entry, sample, cct_child);
       }
 
-      // mark the sampled node for retention as the leaf of a traced call path.
-      hpcrun_cct_retain(host_op_node);
       // assemble the Pytorch Python States, cct_node p_id(for callpath), and the sample lm_ip for instruction relocating
-      callpath_assemble(sample, host_op_node);  
+      callpath_assemble(sample, host_op_node);
 
     } else {
       PRINT("host_map_entry %lu not found\n", external_id);

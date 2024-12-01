@@ -211,7 +211,8 @@ realmain(int argc, char* const* argv)
 
   // Start change
   // use a pair object to store <blame_inst, stall_inst>
-  std::map<uint, std::vector<std::pair<VMA, VMA>>> blames = std::map<uint, std::vector<std::pair<VMA, VMA>>>{};
+
+  blamed_pc_pairs_t blames = blamed_pc_pairs_t{};
   // end change
 
   auto advice = Analysis::CallPath::overlayGPUInstructionsMain(*prof, args.instructionFiles, args.gpuArch, &blames);
@@ -239,13 +240,13 @@ realmain(int argc, char* const* argv)
   Analysis::CallPath::transformCudaCFGMain(*prof);
 
   // start change
-  std::cout << "Shift blames: " << blames.size() << std::endl;
-  for(const auto& [lm_id, ip_pairs]: blames) {
-    std::cout << lm_id << " ";
-    for(auto pair : ip_pairs) {
-      std::cout << pair.first << " : " << pair.second << std::endl;
-    }
-  }
+  // std::cout << "Shift blames: " << blames.size() << std::endl;
+  // for(const auto& [lm_id, ip_pairs]: blames) {
+  //   std::cout << lm_id << " ";
+  //   for(auto pair : ip_pairs) {
+  //     std::cout << pair.first << " : " << pair.second << std::endl;
+  //   }
+  // }
 
   // end change
   Analysis::CallPath::analyzeTorchViewMain(*prof, args.torchViewFiles, &blames);

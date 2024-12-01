@@ -1,10 +1,11 @@
+#include <pthread.h>
 #include <linux/limits.h>  // PATH_MAX
 #include <limits.h>    // PATH_MAX
 #include <stdio.h>
 #include <string.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <hpcrun/cct/cct.h>
+#include <hpcrun/gpu/gpu-function-id-map.h>
 
 #include "torch_monitor_adaptor.h"
 
@@ -18,7 +19,7 @@
 static __thread size_t num_states;
 static __thread torch_monitor_python_state_t python_states[MAX_NUM_STATES];
 static FILE * fp;
-static pthread_mutex_t mutex;
+static pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static adaptor_get_id update_id_func = NULL;
 static char out_dir[PATH_MAX];
@@ -46,13 +47,13 @@ static void adaptor_callback(torch_monitor_callback_site_t callback_site,
     if (callback_data->domain != TORCH_MONITOR_DOMAIN_MEMORY) {
       python_state_get(MAX_NUM_STATES, python_states, &num_states);
 //start log Python States into gpa.log
-      for(int i = 0; i < num_states; i++){
-        printf("%s\n",python_states[i].file_name);
-        printf("%s\n", python_states[i].function_name);
-        printf("%ld : ",python_states[i].function_first_lineno);
-        printf("%ld\n",python_states[i].lineno);
-      }
-      printf("----------------\n");
+      // for(int i = 0; i < num_states; i++){
+      //   printf("%s\n",python_states[i].file_name);
+      //   printf("%s\n", python_states[i].function_name);
+      //   printf("%ld : ",python_states[i].function_first_lineno);
+      //   printf("%ld\n",python_states[i].lineno);
+      // }
+      // printf("----------------\n");
 // end
     }
   }
@@ -98,6 +99,7 @@ adaptor_result_t adaptor_stream_open(void){
 }
 
 adaptor_result_t adaptor_stream_close(void){
+  // pthread_mutex_destroy(&mutex);
   pthread_mutex_lock(&mutex);
   fclose(fp);
   pthread_mutex_unlock(&mutex);
@@ -177,11 +179,12 @@ adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_o
   gpu_pc_sampling_t *sinfo = &(activity->details.pc_sampling);
   // cct_node = gpu_application_thread_correlation_callback(sinfo->correlation_id);  // don't work in consumer functions
   uint16_t lm_id = sinfo->pc.lm_id;
-  uintptr_t lm_ip = sinfo->pc.lm_ip;  // Test setting 1
+  uintptr_t lm_ip = sinfo->pc_offset;  // Test setting 1
 
-  printf("Sampled Info: \n");
-  hpcrun_cct_retain(host_op_node);
-  callpath_assemble_real(cct_node_persistent_id);
+  gpu_function_id_map_entry_t *fid_map_entry = gpu_function_id_map_lookup(sinfo->function_id);
+  assert(fid_map_entry);
+  uintptr_t function_offset = gpu_function_id_map_entry_pc_get(fid_map_entry).lm_ip;
+  printf("LM_ID: %u; Func_addr: %lu; PC_Offset: %lu\n", lm_id, function_offset, lm_ip);
 
   pthread_mutex_lock(&mutex);
   if (fp != NULL){
@@ -191,12 +194,19 @@ adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_o
     fprintf(fp, "lm_id\n");
     fprintf(fp, "%u\n",lm_id);
 
+    // start change
+    fprintf(fp, "function_offset\n");
+    fprintf(fp, "%ld\n",function_offset);
+    // end change
+
     fprintf(fp, "lm_ip\n");
     fprintf(fp, "%ld\n",lm_ip);
+    pthread_mutex_unlock(&mutex);
   } else {
+    pthread_mutex_unlock(&mutex);
+    fprintf(stdout, "File stream status abnormal.\n");
     return TORCH_MONITOR_ADAPTOR_ERROR;
   }
-  pthread_mutex_unlock(&mutex);
 
   return TORCH_MONITOR_ADAPTOR_SUCCESS;
 }

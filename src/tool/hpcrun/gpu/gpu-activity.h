@@ -55,6 +55,14 @@
 
 
 //******************************************************************************
+// nvidia includes
+//******************************************************************************
+
+#include <cupti_version.h>
+
+
+
+//******************************************************************************
 // local includes
 //******************************************************************************
 
@@ -215,6 +223,13 @@ typedef struct gpu_pc_sampling_t {
   ip_normalized_t pc;
   uint32_t samples;
   uint32_t latencySamples;
+  // add functionId as a field
+#if CUPTI_API_VERSION >= 10
+  uint64_t pc_offset;
+#else
+  uint32_t pc_offset;
+#endif
+  uint32_t  function_id;
   gpu_inst_stall_t stallReason;    
 } gpu_pc_sampling_t;
 

@@ -117,7 +117,10 @@ namespace Analysis {
       int32_t ctx_id;
       std::string context;
 
-      TV_CTX_NODE() = default;
+      TV_CTX_NODE(){
+        this->ctx_id = 0;
+        this->context = "";
+      }
 
       TV_CTX_NODE(int32_t cid) : ctx_id(cid), context("") {}
 
@@ -138,7 +141,12 @@ namespace Analysis {
       int function_first_lineno;
       int lineno;
 
-      PythonContex() = default;
+      PythonContex(){
+        this->file_name = "";
+        this->function_name = "";
+        this->function_first_lineno = 0;
+        this->lineno = 0;
+      }
 
       PythonContex(const PythonContex& rhs){
         this->file_name = std::string(rhs.file_name);
@@ -161,10 +169,34 @@ namespace Analysis {
       int num_states;
       std::size_t hash;
       uint16_t lm_id = 0;
-      std::vector<std::pair<uintptr_t, uintptr_t>> lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>();
+      std::vector<uint64_t> function_offsets;
+      std::vector<std::pair<uintptr_t, uintptr_t>> lm_ips;
+      std::map<uint64_t, std::map<uintptr_t, double>> ip_weights;
       std::vector<python_context_t> python_contexts;
 
       Torch_View_Call_Path() = default;
+
+      Torch_View_Call_Path(const Torch_View_Call_Path& rhs){
+        this->global_id = rhs.global_id;
+        this->ctx_node = rhs.ctx_node;
+        this->num_states = rhs.num_states;
+        this->hash = rhs.hash;
+        this->lm_id = rhs.lm_id;
+        this->function_offsets = std::vector<uint64_t>(rhs.function_offsets);
+        this->lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>(rhs.lm_ips);
+        this->python_contexts = std::vector<python_context_t>(rhs.python_contexts);
+      }
+
+      void operator=(const Torch_View_Call_Path& rhs){
+        this->global_id = rhs.global_id;
+        this->ctx_node = rhs.ctx_node;
+        this->num_states = rhs.num_states;
+        this->hash = rhs.hash;
+        this->lm_id = rhs.lm_id;
+        this->function_offsets = std::vector<uint64_t>(rhs.function_offsets);
+        this->lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>(rhs.lm_ips);
+        this->python_contexts = std::vector<python_context_t>(rhs.python_contexts);
+      }
 
     } torch_view_call_path_t;
 
@@ -173,7 +205,7 @@ namespace Analysis {
 
 
     static void read_memory_node(const std::string &file_name, VIEW_CTX_MAP &view_ctx_map,
-                                std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
+                                blamed_pc_pairs_t* blames) {
       std::ifstream fileread(file_name);
       std::string word;
       bool is_id = false;
@@ -185,6 +217,7 @@ namespace Analysis {
       bool is_pystates_hash = false;
       bool is_cct_node_persistent_id = false;
       bool is_lm_id = false;
+      bool is_function_offsets = false;
       bool is_lm_ip = false;
       bool is_ctx_id = false;
 
@@ -202,6 +235,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -219,6 +253,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -235,6 +270,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -252,6 +288,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -268,6 +305,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -284,6 +322,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -300,6 +339,7 @@ namespace Analysis {
           is_pystates_hash = true;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -316,6 +356,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = true;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -332,6 +373,24 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = true;
+          is_function_offsets = false;
+          is_lm_ip = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "function_offset"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_cct_node_persistent_id = false;
+          is_lm_id = false;
+          is_function_offsets = true;
           is_lm_ip = false;
           is_ctx_id = false;
 
@@ -348,6 +407,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = true;
           is_ctx_id = false;
 
@@ -364,6 +424,7 @@ namespace Analysis {
           is_pystates_hash = false;
           is_cct_node_persistent_id = false;
           is_lm_id = false;
+          is_function_offsets = false;
           is_lm_ip = false;
           is_ctx_id = true;
 
@@ -377,6 +438,7 @@ namespace Analysis {
 
           continue;
         }
+
         if(is_num_states){
           try{
             view_ctx_map.back().num_states = (int)std::stoi(word);
@@ -386,16 +448,19 @@ namespace Analysis {
 
           continue;
         }
+
         if(is_file_name) {
           view_ctx_map.back().python_contexts.back().file_name = word;
 
           continue;
         }
+
         if(is_function_name) {
           view_ctx_map.back().python_contexts.back().function_name = word;
 
           continue;
         }
+
         if(is_function_first_lineno) {
           try{
             view_ctx_map.back().python_contexts.back().function_first_lineno = (int)std::stoi(word);
@@ -405,6 +470,7 @@ namespace Analysis {
 
           continue;
         }
+
         if(is_lineno) {
           try{
             view_ctx_map.back().python_contexts.back().lineno = (int)std::stoi(word);
@@ -414,6 +480,7 @@ namespace Analysis {
 
           continue;
         }
+
         if(is_pystates_hash) {
           view_ctx_map.back().hash = (std::size_t)std::hash<std::string>{}(word);
           // std::cout << "I SAW: " << word << std::endl;
@@ -425,6 +492,7 @@ namespace Analysis {
 
           continue;
         }
+
         if(is_lm_id) {
           for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
             if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
@@ -434,19 +502,39 @@ namespace Analysis {
             }
           }
         }
-        if(is_lm_ip) {
+
+        if(is_function_offsets) {
           for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
             if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
-              uintptr_t sample_pc = (uintptr_t)std::stol(word);
+              uintptr_t function_offset = (uintptr_t)std::stol(word);
+              it->function_offsets.emplace_back(function_offset);
+
+              goto flag_outer;
+            }
+          }
+        }
+
+        if(is_lm_ip) {
+          uintptr_t sample_pc = (uintptr_t)std::stol(word);
+          for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
+              // uintptr_t sample_pc = (uintptr_t)std::stol(word);
               bool flag = false;
-              for(std::pair<VMA, VMA>& piter : (*blames)[it->lm_id]) {
-                if((uintptr_t)piter.second == sample_pc) {
-                  it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{(uintptr_t)piter.first, (uintptr_t)piter.second});
-                  flag = true;
+              for(auto& [func_addr, pc_vector] : (*blames)[it->lm_id]) {
+                if(func_addr == it->function_offsets.back()){
+                  for(pc_pair_t& piter : pc_vector){
+                    if(((uintptr_t)piter.second == sample_pc)) {
+                      if(flag) {
+                        it->function_offsets.emplace_back(it->function_offsets.back());
+                      }
+                      it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{(uintptr_t)piter.first, (uintptr_t)piter.second});
+                      flag = true;
+                    }
+                  }
                 }
               }
               if(!flag) {
-                it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{0, sample_pc});
+                it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{sample_pc /*0*/, sample_pc});
               }
               goto flag_outer;
             }
@@ -641,7 +729,8 @@ namespace Analysis {
 
 
     static void outputContext(const std::string &file_name, VIEW_CTX_MAP &ctx_node_map,
-                              std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
+                              blamed_pc_pairs_t* blames) {
+
       // start find hot blames
       std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, uint32_t>>> hot = std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, uint32_t>>>{};
       for(auto & iter : ctx_node_map) {
@@ -649,22 +738,23 @@ namespace Analysis {
           hot[iter.lm_id] = std::vector<std::pair<VMA, uint32_t>> {};
         }
       }  // populate all the lm(s) we collected
-
-      for(auto& [lm_id, b_s]: (*blames) ){
-        for(auto& piter : (*blames)[lm_id]) {
-          bool find = false;
-          for(auto& hiter : hot[lm_id]) {
-            if(hiter.first == piter.first) {
-              hiter.second += 1;
-              find = true;
+      for(auto& [lm_id, func_addrs]: (*blames) ){
+        for(auto& fiter : func_addrs) {
+          for(auto& piter : fiter.second) {
+            bool find = false;
+            for(auto& hiter : hot[lm_id]) {
+              if(hiter.first == piter.first) {
+                hiter.second += 1;
+                find = true;
+                // break;
+              }
             }
-          }
-          if(!find) {
-             hot[lm_id].emplace_back(piter.first, 1);
+            if(!find) {
+              hot[lm_id].emplace_back(piter.first, 1);
+            }
           }
         }
       }  // count all the blamed pc(s)
-      
       for(auto& [lm_id, b_c] : hot){
         std::sort(b_c.begin(), b_c.end(),
                   [](const std::pair<VMA, uint32_t>& a, const std::pair<VMA, uint32_t>& b){
@@ -674,15 +764,62 @@ namespace Analysis {
 
       // end find hot blames
 
+      // start calculating blamed PC weight
+      uint64_t num_blames = 0;
+      for(auto& niter : ctx_node_map) {
+        num_blames += niter.lm_ips.size();
+      }
+      std::cout << "num_blames: " << num_blames << std::endl;
+      for(auto& niter : ctx_node_map) {
+        std::cout << "Size of Func: " << niter.function_offsets.size() << std::endl;
+        std::cout << "Size of blamed pc: " << niter.lm_ips.size() << std::endl;
+        for(size_t i = 0; i < niter.function_offsets.size(); i++){
+          if(niter.lm_ips.at(i).first == 0){
+            continue;
+          }
+          std::cout << "PRINT Blamed PC: " << std::hex << niter.lm_ips.at(i).first << std::dec << std::endl;
+          if(niter.ip_weights[niter.function_offsets.at(i)].find(niter.lm_ips.at(i).first) == niter.ip_weights[niter.function_offsets.at(i)].end()) {
+            niter.ip_weights[niter.function_offsets.at(i)][niter.lm_ips.at(i).first] = 1.0;
+            std::cout << std::hex << niter.lm_ips.at(i).first << std::dec << " inserted" << std::endl;
+          } else{
+            niter.ip_weights[niter.function_offsets.at(i)][niter.lm_ips.at(i).first] += 1.0;
+            std::cout << std::hex << niter.lm_ips.at(i).first << std::dec << " added." << std::endl;
+          }
+        }
+        for(auto& [f, wmap] : niter.ip_weights){
+          for(auto& [b, w] : wmap){
+            std::cout << "pc: " << std::hex << b << std::dec << " count: " << w << std::endl;
+            w /= num_blames;
+            w *= 100;
+            std::cout << "pc: " << std::hex << b << std::dec << " weight: " << w << std::endl;
+          }
+        }
+      }
+      // end calculating blamed PC weight
+
       std::ofstream out(file_name + ".context");
       // start print hot blames
-      for(auto& [lm, b_c] : hot){
-        out << "Load Module: " << lm << std::endl ;
-        for(auto& [b, c] : b_c){
-          out << b << ":" << c << " ";
+      // for(auto& [lm, b_c] : hot){
+      //   out << "Load Module: " << lm << std::endl ;
+      //   for(auto& [b, c] : b_c){
+      //     out << std::hex << b << std::dec << ":" << std::hex << c << std::dec << " ";
+      //   }
+      //   out << std::endl;
+      // }
+
+      for(auto& niter : ctx_node_map){
+        if(!niter.lm_id){
+          continue;
         }
-        out << std::endl;
+        out << "ctx_id: " << niter.ctx_node.ctx_id << " LM: " << niter.lm_id << std::endl;
+        for(auto& [f, wmap] : niter.ip_weights){
+          out << "  Func_Addr: " << f << std::endl;
+          for(auto& [b, w] : wmap){
+            out << "    " << std::hex << b << std::dec << ": " << w << "%  ";
+          } out << std::endl;
+        } out << std::endl;
       }
+
       out << "\n------------------------------------------------------------\n" << std::endl;
       // end print hot blames
 
@@ -710,10 +847,11 @@ namespace Analysis {
                     [] (const std::pair<uintptr_t, uintptr_t> a, const std::pair<uintptr_t, uintptr_t> b)
                        { return a.first < b.first; });
           for(auto v : iter.lm_ips) {
-            if(v.first == 0) {
-              continue;
+            if(v.first != 0) {
+              out << " " << std::hex << v.first << std::dec << "/" << std::hex << v.second << std::dec;
+            } else{
+              out << " " << std::hex << v.first << std::dec << "/" << std::hex << v.second << std::dec;
             }
-            out << " " << v.first << "/" << v.second;
           }
           out << std::endl;
         }
@@ -733,7 +871,7 @@ namespace Analysis {
 
     void analyzeTorchViewMain(Prof::CallPath::Profile &prof,
                               const std::vector<std::string> &torchViewFiles,
-                              std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, VMA>>>* blames) {
+                              blamed_pc_pairs_t* blames) {
       Prof::CallPath::CCTIdToCCTNodeMap cctNodeMap;
 
       Prof::CCT::ANodeIterator prof_it(prof.cct()->root(), NULL/*filter*/, false/*leavesOnly*/,
