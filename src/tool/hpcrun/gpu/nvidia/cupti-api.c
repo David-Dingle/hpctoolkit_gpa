@@ -1145,7 +1145,8 @@ cupti_subscriber_callback
         cupti_kernel_ph = gpu_op_ccts_get(&gpu_op_ccts, gpu_placeholder_type_kernel);
 // start        
         hpcrun_cct_retain(cupti_kernel_ph);
-        callpath_assemble_real(hpcrun_cct_persistent_id(cupti_kernel_ph));
+        callpath_assemble_real(hpcrun_cct_persistent_id(cupti_kernel_ph), correlation_id);
+        // callpath_assemble_real(hpcrun_cct_persistent_id(cupti_kernel_ph));
 // end
         // Generate notification entry
         uint64_t cpu_submit_time = hpcrun_nanotime();

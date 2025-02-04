@@ -46,6 +46,16 @@ EXTERNC adaptor_result_t adaptor_torch_monitor_enable();
 EXTERNC adaptor_result_t python_state_get(size_t max_num_states, torch_monitor_python_state_t *states, size_t *num_states);
 
 
+// /**
+//  * @brief Invoke this function at both domain == CUPTI_CB_DOMAIN_DRIVER_API or CUPTI_CB_DOMAIN_RUNTIME_API
+//  * to assemble cct_node_t.persistent_id with Python states fetched by torch-monitor and log them in the file
+//  * 
+//  * @param cct_node_persistent_id cct_node_t.persistent_id from cupti_api.c
+//  * 
+//  */
+// EXTERNC adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id);  // , uintptr_t lm_ip);
+
+
 /**
  * @brief Invoke this function at both domain == CUPTI_CB_DOMAIN_DRIVER_API or CUPTI_CB_DOMAIN_RUNTIME_API
  * to assemble cct_node_t.persistent_id with Python states fetched by torch-monitor and log them in the file
@@ -53,7 +63,7 @@ EXTERNC adaptor_result_t python_state_get(size_t max_num_states, torch_monitor_p
  * @param cct_node_persistent_id cct_node_t.persistent_id from cupti_api.c
  * 
  */
-EXTERNC adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id);  // , uintptr_t lm_ip);
+EXTERNC adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uint64_t gpu_correlation_id);  // , uintptr_t lm_ip);
 
 
 /**
@@ -63,7 +73,7 @@ EXTERNC adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id);
  * @param activity we will need activity->cct_node, and activity->details.pc_sampling from the activity
  * 
  */
-EXTERNC adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_op_node);
+EXTERNC adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_op_node, uint64_t activity_external_id);
 
 
 /**

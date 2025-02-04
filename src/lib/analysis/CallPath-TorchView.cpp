@@ -168,10 +168,13 @@ namespace Analysis {
       ctx_node_t ctx_node;
       int num_states;
       std::size_t hash;
+      uint64_t gpu_correlation_id;
+      uint64_t activity_external_id;
       uint16_t lm_id = 0;
       std::vector<uint64_t> function_offsets;
       std::vector<std::pair<uintptr_t, uintptr_t>> lm_ips;
-      std::map<uint64_t, std::map<uintptr_t, double>> ip_weights;
+      std::vector<std::pair<uintptr_t, uint64_t>> latency_samples;
+      std::map<uint64_t, std::map<uintptr_t, uint64_t>> ip_weights;
       std::vector<python_context_t> python_contexts;
 
       Torch_View_Call_Path() = default;
@@ -181,9 +184,12 @@ namespace Analysis {
         this->ctx_node = rhs.ctx_node;
         this->num_states = rhs.num_states;
         this->hash = rhs.hash;
+        this->gpu_correlation_id = rhs.gpu_correlation_id;
+        this->activity_external_id = rhs.activity_external_id;
         this->lm_id = rhs.lm_id;
         this->function_offsets = std::vector<uint64_t>(rhs.function_offsets);
         this->lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>(rhs.lm_ips);
+        this->latency_samples = std::vector<std::pair<uintptr_t, uint64_t>>(rhs.latency_samples);
         this->python_contexts = std::vector<python_context_t>(rhs.python_contexts);
       }
 
@@ -192,9 +198,12 @@ namespace Analysis {
         this->ctx_node = rhs.ctx_node;
         this->num_states = rhs.num_states;
         this->hash = rhs.hash;
+        this->gpu_correlation_id = rhs.gpu_correlation_id;
+        this->activity_external_id = rhs.activity_external_id;
         this->lm_id = rhs.lm_id;
         this->function_offsets = std::vector<uint64_t>(rhs.function_offsets);
         this->lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>(rhs.lm_ips);
+        this->latency_samples = std::vector<std::pair<uintptr_t, uint64_t>>(rhs.latency_samples);
         this->python_contexts = std::vector<python_context_t>(rhs.python_contexts);
       }
 
@@ -215,13 +224,18 @@ namespace Analysis {
       bool is_function_first_lineno = false;
       bool is_lineno = false;
       bool is_pystates_hash = false;
+      bool is_gpu_correlation_id = false;
       bool is_cct_node_persistent_id = false;
+      bool is_activity_external_id = false;
       bool is_lm_id = false;
       bool is_function_offsets = false;
       bool is_lm_ip = false;
+      bool is_latency_samples = false;
       bool is_ctx_id = false;
 
       int32_t current_ctx_persistent_id = 0;
+      uint64_t current_activity_external_id = 0;
+      std::vector<uintptr_t> current_blamed_pc = std::vector<uintptr_t>{};
 
       while (fileread >> word) {
 
@@ -233,10 +247,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           view_ctx_map.emplace_back();
@@ -251,10 +268,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -268,10 +288,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           view_ctx_map.back().python_contexts.emplace_back();
@@ -286,10 +309,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -303,10 +329,13 @@ namespace Analysis {
           is_function_first_lineno = true;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -320,10 +349,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = true;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -337,10 +369,53 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = true;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "gpu_correlation_id"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_gpu_correlation_id = true;
+          is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
+          is_lm_id = false;
+          is_function_offsets = false;
+          is_lm_ip = false;
+          is_latency_samples = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "activity_external_id"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_gpu_correlation_id = false;
+          is_cct_node_persistent_id = false;
+          is_activity_external_id = true;
+          is_lm_id = false;
+          is_function_offsets = false;
+          is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -354,10 +429,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = true;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -371,10 +449,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = true;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -388,10 +469,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = true;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = false;
 
           continue;
@@ -405,10 +489,33 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = true;
+          is_latency_samples = false;
+          is_ctx_id = false;
+
+          continue;
+        }
+
+        if (word == "latency_samples"){
+          is_id = false;
+          is_num_states = false;
+          is_file_name = false;
+          is_function_name = false;
+          is_function_first_lineno = false;
+          is_lineno = false;
+          is_pystates_hash = false;
+          is_gpu_correlation_id = false;
+          is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
+          is_lm_id = false;
+          is_function_offsets = false;
+          is_lm_ip = false;
+          is_latency_samples = true;
           is_ctx_id = false;
 
           continue;
@@ -422,10 +529,13 @@ namespace Analysis {
           is_function_first_lineno = false;
           is_lineno = false;
           is_pystates_hash = false;
+          is_gpu_correlation_id = false;
           is_cct_node_persistent_id = false;
+          is_activity_external_id = false;
           is_lm_id = false;
           is_function_offsets = false;
           is_lm_ip = false;
+          is_latency_samples = false;
           is_ctx_id = true;
 
           continue;
@@ -487,15 +597,25 @@ namespace Analysis {
           continue;
         }
 
+        if(is_gpu_correlation_id) {
+          view_ctx_map.back().gpu_correlation_id = (uint64_t)std::stoul(word);
+        }
+
         if(is_cct_node_persistent_id) {
           current_ctx_persistent_id = (int32_t)std::stol(word);
 
           continue;
         }
 
+        if(is_activity_external_id) {
+          current_activity_external_id = (uint64_t)std::stoul(word);
+
+          continue;
+        }
+
         if(is_lm_id) {
           for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
-            if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id && it->gpu_correlation_id == current_activity_external_id) {
               it->lm_id = (uint16_t)std::stol(word);
 
               goto flag_outer;  // Be Careful !
@@ -505,7 +625,7 @@ namespace Analysis {
 
         if(is_function_offsets) {
           for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
-            if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id && it->gpu_correlation_id == current_activity_external_id) {
               uintptr_t function_offset = (uintptr_t)std::stol(word);
               it->function_offsets.emplace_back(function_offset);
 
@@ -517,7 +637,7 @@ namespace Analysis {
         if(is_lm_ip) {
           uintptr_t sample_pc = (uintptr_t)std::stol(word);
           for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
-            if(it->ctx_node.ctx_id == current_ctx_persistent_id) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id && it->gpu_correlation_id == current_activity_external_id) {
               // uintptr_t sample_pc = (uintptr_t)std::stol(word);
               bool flag = false;
               for(auto& [func_addr, pc_vector] : (*blames)[it->lm_id]) {
@@ -528,6 +648,7 @@ namespace Analysis {
                         it->function_offsets.emplace_back(it->function_offsets.back());
                       }
                       it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{(uintptr_t)piter.first, (uintptr_t)piter.second});
+                      current_blamed_pc.emplace_back((uintptr_t)piter.first);
                       flag = true;
                     }
                   }
@@ -535,11 +656,28 @@ namespace Analysis {
               }
               if(!flag) {
                 it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{sample_pc /*0*/, sample_pc});
+                current_blamed_pc.emplace_back(sample_pc);
               }
               goto flag_outer;
             }
           }
         }
+
+        if(is_latency_samples) {
+          for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
+            if(it->ctx_node.ctx_id == current_ctx_persistent_id && it->gpu_correlation_id == current_activity_external_id) {
+              uint64_t _latency_samples = (uint64_t)std::stol(word);
+              for(auto & blamed : current_blamed_pc) {
+                it->latency_samples.emplace_back(std::pair<uintptr_t, uint64_t>(blamed, _latency_samples));
+              }
+              current_blamed_pc.clear();
+              goto flag_outer;
+            }
+          }
+        }
+
+
+
         if(is_ctx_id) {
           view_ctx_map.back().ctx_node.ctx_id = (int32_t)std::stol(word);
 
@@ -731,97 +869,7 @@ namespace Analysis {
     static void outputContext(const std::string &file_name, VIEW_CTX_MAP &ctx_node_map,
                               blamed_pc_pairs_t* blames) {
 
-      // start find hot blames
-      std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, uint32_t>>> hot = std::map<Prof::LoadMap::LMId_t, std::vector<std::pair<VMA, uint32_t>>>{};
-      for(auto & iter : ctx_node_map) {
-        if(hot.find(iter.lm_id) != hot.end()) {
-          hot[iter.lm_id] = std::vector<std::pair<VMA, uint32_t>> {};
-        }
-      }  // populate all the lm(s) we collected
-      for(auto& [lm_id, func_addrs]: (*blames) ){
-        for(auto& fiter : func_addrs) {
-          for(auto& piter : fiter.second) {
-            bool find = false;
-            for(auto& hiter : hot[lm_id]) {
-              if(hiter.first == piter.first) {
-                hiter.second += 1;
-                find = true;
-                // break;
-              }
-            }
-            if(!find) {
-              hot[lm_id].emplace_back(piter.first, 1);
-            }
-          }
-        }
-      }  // count all the blamed pc(s)
-      for(auto& [lm_id, b_c] : hot){
-        std::sort(b_c.begin(), b_c.end(),
-                  [](const std::pair<VMA, uint32_t>& a, const std::pair<VMA, uint32_t>& b){
-                    return a.second > b.second;
-                  } );
-      }  // sort blamed instruction by its counter value
-
-      // end find hot blames
-
-      // start calculating blamed PC weight
-      uint64_t num_blames = 0;
-      for(auto& niter : ctx_node_map) {
-        num_blames += niter.lm_ips.size();
-      }
-      std::cout << "num_blames: " << num_blames << std::endl;
-      for(auto& niter : ctx_node_map) {
-        std::cout << "Size of Func: " << niter.function_offsets.size() << std::endl;
-        std::cout << "Size of blamed pc: " << niter.lm_ips.size() << std::endl;
-        for(size_t i = 0; i < niter.function_offsets.size(); i++){
-          if(niter.lm_ips.at(i).first == 0){
-            continue;
-          }
-          std::cout << "PRINT Blamed PC: " << std::hex << niter.lm_ips.at(i).first << std::dec << std::endl;
-          if(niter.ip_weights[niter.function_offsets.at(i)].find(niter.lm_ips.at(i).first) == niter.ip_weights[niter.function_offsets.at(i)].end()) {
-            niter.ip_weights[niter.function_offsets.at(i)][niter.lm_ips.at(i).first] = 1.0;
-            std::cout << std::hex << niter.lm_ips.at(i).first << std::dec << " inserted" << std::endl;
-          } else{
-            niter.ip_weights[niter.function_offsets.at(i)][niter.lm_ips.at(i).first] += 1.0;
-            std::cout << std::hex << niter.lm_ips.at(i).first << std::dec << " added." << std::endl;
-          }
-        }
-        for(auto& [f, wmap] : niter.ip_weights){
-          for(auto& [b, w] : wmap){
-            std::cout << "pc: " << std::hex << b << std::dec << " count: " << w << std::endl;
-            w /= num_blames;
-            w *= 100;
-            std::cout << "pc: " << std::hex << b << std::dec << " weight: " << w << std::endl;
-          }
-        }
-      }
-      // end calculating blamed PC weight
-
       std::ofstream out(file_name + ".context");
-      // start print hot blames
-      // for(auto& [lm, b_c] : hot){
-      //   out << "Load Module: " << lm << std::endl ;
-      //   for(auto& [b, c] : b_c){
-      //     out << std::hex << b << std::dec << ":" << std::hex << c << std::dec << " ";
-      //   }
-      //   out << std::endl;
-      // }
-
-      for(auto& niter : ctx_node_map){
-        if(!niter.lm_id){
-          continue;
-        }
-        out << "ctx_id: " << niter.ctx_node.ctx_id << " LM: " << niter.lm_id << std::endl;
-        for(auto& [f, wmap] : niter.ip_weights){
-          out << "  Func_Addr: " << f << std::endl;
-          for(auto& [b, w] : wmap){
-            out << "    " << std::hex << b << std::dec << ": " << w << "%  ";
-          } out << std::endl;
-        } out << std::endl;
-      }
-
-      out << "\n------------------------------------------------------------\n" << std::endl;
-      // end print hot blames
 
       for (auto& iter : ctx_node_map) {
         if(iter.lm_id == 0) {
@@ -829,10 +877,6 @@ namespace Analysis {
         }
         out << iter.global_id << ": " << std::endl;
         for (auto& piter : iter.python_contexts) {
-          // out << piter.file_name << std::endl;
-          // out << piter.function_name << std::endl;
-          // out << piter.function_first_lineno << std::endl;
-          // out << piter.lineno << std::endl;
           out << "  " << piter.file_name << ":" << piter.function_name << ":" << piter.function_first_lineno << ":" << piter.lineno << std::endl;
         }
         out << "pystates_hash: " << iter.hash << std::endl;
@@ -856,6 +900,76 @@ namespace Analysis {
           out << std::endl;
         }
         out << iter.ctx_node.context << std::endl;;
+      }
+
+      out.close();
+    }
+
+    static void outputContext_v2(const std::string &file_name, VIEW_CTX_MAP &ctx_node_map,
+                              blamed_pc_pairs_t* blames) {
+      uint64_t num_blames = 0;
+      for(auto& niter : ctx_node_map) {
+        // std::cout << "f_offset vector size " << niter.function_offsets.size() << std::endl;
+        // std::cout << "lm_ip vector size " << niter.lm_ips.size() << std::endl;
+        // std::cout << "ip_weights map size " << niter.ip_weights.size() << std::endl;
+        for(size_t i = 0; i < niter.function_offsets.size(); i++){
+          uint64_t _func_offset = niter.function_offsets.at(i);
+          uintptr_t _blamed_pc = niter.lm_ips.at(i).first;
+          uint64_t _latency_samples = niter.latency_samples.at(i).second;
+          // std::cout << i << "th func_offset " << niter.function_offsets.at(i) << std::endl;
+          // std::cout << niter.lm_ips.at(i).first << " -> " << niter.lm_ips.at(i).second << std::endl;
+          // std::cout << niter.latency_samples.at(i).first << " : " << niter.latency_samples.at(i).second << std::endl;
+          if(_blamed_pc == 0){
+            continue;
+          }
+          if(niter.ip_weights[_func_offset].find(_blamed_pc) == niter.ip_weights[_func_offset].end()) {
+            niter.ip_weights[_func_offset][_blamed_pc] = _latency_samples;
+          } else{
+            niter.ip_weights[_func_offset][_blamed_pc] += _latency_samples;
+          }
+          // std::cout << "ip_weights " << niter.ip_weights[niter.function_offsets.at(i)][niter.latency_samples.at(i).first] << std::endl;
+        }
+      }
+
+      for(auto& niter : ctx_node_map) {
+        for(auto& [f_offset, b_l] : niter.ip_weights) {
+          for(auto& [b, latency_samples] : b_l) {
+            num_blames += latency_samples;
+          }
+        }
+      }
+      std::cout << "We got " << num_blames << " blames." << std::endl;
+      // end calculating blamed PC weight
+
+      std::ofstream out(file_name + ".context_v2");
+      out << "total_stalls " << num_blames << std::endl << std::endl;
+      
+      for (auto& iter : ctx_node_map) {
+        if(iter.lm_id == 0) {
+          continue;
+        }
+        out << "gpa_id " << iter.global_id << std::endl;
+
+        out << "pystates_hash " << iter.hash << std::endl;
+        // out << "ctx_id: " << iter.ctx_node.ctx_id << std::endl;
+        if(iter.lm_id != 0) {  // if PC info is available
+          out << "leaf_lm_id " << iter.lm_id << std::endl;
+        }
+        if(!iter.lm_ips.empty()) {
+          out << "lm_ip " << std::endl; 
+          std::sort(iter.lm_ips.begin(),
+                    iter.lm_ips.end(),
+                    [] (const std::pair<uintptr_t, uintptr_t> a, const std::pair<uintptr_t, uintptr_t> b)
+                       { return a.first < b.first; });
+
+          for(auto& [f, wmap] : iter.ip_weights){
+            for(auto& [b, w] : wmap){
+              out << " pc " << b << " count " << w << std::endl;
+            }
+          }
+          out << std::endl;
+        }
+        // out << iter.ctx_node.context << std::endl;;
       }
 
       out.close();
@@ -892,6 +1006,8 @@ namespace Analysis {
         matchCCTNode(cctNodeMap, view_ctx_map);
 
         outputContext(file, view_ctx_map, blames);
+
+        outputContext_v2(file, view_ctx_map, blames);
 
         finish(view_ctx_map);
 
