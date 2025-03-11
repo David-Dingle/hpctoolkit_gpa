@@ -173,7 +173,7 @@ namespace Analysis {
       uint16_t lm_id = 0;
       std::vector<uint64_t> function_offsets;
       std::vector<std::pair<uintptr_t, uintptr_t>> lm_ips;
-      std::vector<std::pair<uintptr_t, uint64_t>> latency_samples;
+      std::map<uint64_t, std::vector<std::pair<uintptr_t, uint64_t>>> latency_samples;
       std::map<uint64_t, std::map<uintptr_t, uint64_t>> ip_weights;
       std::vector<python_context_t> python_contexts;
 
@@ -189,7 +189,7 @@ namespace Analysis {
         this->lm_id = rhs.lm_id;
         this->function_offsets = std::vector<uint64_t>(rhs.function_offsets);
         this->lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>(rhs.lm_ips);
-        this->latency_samples = std::vector<std::pair<uintptr_t, uint64_t>>(rhs.latency_samples);
+        this->latency_samples = std::map<uint64_t, std::vector<std::pair<uintptr_t, uint64_t>>>(rhs.latency_samples);
         this->python_contexts = std::vector<python_context_t>(rhs.python_contexts);
       }
 
@@ -203,7 +203,7 @@ namespace Analysis {
         this->lm_id = rhs.lm_id;
         this->function_offsets = std::vector<uint64_t>(rhs.function_offsets);
         this->lm_ips = std::vector<std::pair<uintptr_t, uintptr_t>>(rhs.lm_ips);
-        this->latency_samples = std::vector<std::pair<uintptr_t, uint64_t>>(rhs.latency_samples);
+        this->latency_samples = std::map<uint64_t, std::vector<std::pair<uintptr_t, uint64_t>>>(rhs.latency_samples);
         this->python_contexts = std::vector<python_context_t>(rhs.python_contexts);
       }
 
@@ -235,7 +235,7 @@ namespace Analysis {
 
       int32_t current_ctx_persistent_id = 0;
       uint64_t current_activity_external_id = 0;
-      std::vector<uintptr_t> current_blamed_pc = std::vector<uintptr_t>{};
+      std::set<uintptr_t> current_blamed_pc = std::set<uintptr_t>{};
 
       while (fileread >> word) {
 
@@ -640,35 +640,60 @@ namespace Analysis {
             if(it->ctx_node.ctx_id == current_ctx_persistent_id && it->gpu_correlation_id == current_activity_external_id) {
               // uintptr_t sample_pc = (uintptr_t)std::stol(word);
               bool flag = false;
+
+              // start debugging
+              std::cout << "it->lm_id: " << it->lm_id << std::endl;
+              // end debugging
+
               for(auto& [func_addr, pc_vector] : (*blames)[it->lm_id]) {
+                //start debugging
+                std::cout << " func_addr: " << func_addr << std::endl;
+                //end debugging
                 if(func_addr == it->function_offsets.back()){
-                  for(pc_pair_t& piter : pc_vector){
-                    if(((uintptr_t)piter.second == sample_pc)) {
+                  for(auto& [from_inst, stall_inst] : pc_vector){
+                    if((stall_inst == sample_pc)) {
                       if(flag) {
-                        it->function_offsets.emplace_back(it->function_offsets.back());
+                        it->function_offsets.emplace_back(func_addr);
                       }
-                      it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{(uintptr_t)piter.first, (uintptr_t)piter.second});
-                      current_blamed_pc.emplace_back((uintptr_t)piter.first);
+
+                      // start debugging
+                      std::cout << "-LM: " << it->lm_id << std::endl;
+                      std::cout << "-func_addr: " << func_addr << " it->function_offsets.back(): " << it->function_offsets.back() << std::endl;
+                      std::cout << "-pc from: " << from_inst << " pc to: " << stall_inst << std::endl;
+                      // end debugging
+                      
+                      it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{from_inst, stall_inst});
+                      current_blamed_pc.insert(from_inst);
                       flag = true;
                     }
                   }
                 }
               }
-              if(!flag) {
-                it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{sample_pc /*0*/, sample_pc});
-                current_blamed_pc.emplace_back(sample_pc);
+              // if(!flag) {
+              //   it->lm_ips.emplace_back(std::pair<uintptr_t, uintptr_t>{/*sample_pc*/ 0, sample_pc});
+              //   current_blamed_pc.insert(sample_pc);
+              // }
+              int diff = it->lm_ips.size() - it->function_offsets.size();
+              if (diff > 0) {
+                std::cout << "diff > 0" << std::endl;
+                it->function_offsets.insert(it->function_offsets.end(), diff, it->function_offsets.back());
+              } else if (diff < 0) {
+                std::cout << "diff < 0" << std::endl;
+                it->function_offsets.resize(it->function_offsets.size() + diff);
               }
+
               goto flag_outer;
             }
           }
         }
 
         if(is_latency_samples) {
+          uint64_t _latency_samples = (uint64_t)std::stol(word);
           for(VIEW_CTX_MAP::iterator it = view_ctx_map.end() - 1; it >= view_ctx_map.begin(); it--) {
             if(it->ctx_node.ctx_id == current_ctx_persistent_id && it->gpu_correlation_id == current_activity_external_id) {
-              uint64_t _latency_samples = (uint64_t)std::stol(word);
+              
               for(auto & blamed : current_blamed_pc) {
-                it->latency_samples.emplace_back(std::pair<uintptr_t, uint64_t>(blamed, _latency_samples));
+                it->latency_samples[it->function_offsets.back()].emplace_back(blamed, _latency_samples);
               }
               current_blamed_pc.clear();
               goto flag_outer;
@@ -871,6 +896,20 @@ namespace Analysis {
 
       std::ofstream out(file_name + ".context");
 
+      // start debug
+      out << "+++ Blames +++" << std::endl;
+      for (auto& [lm_id, func_pcs] : (*blames)) {
+        out << "LM: " << lm_id << std::endl;
+        for (auto& [func, pc_pairs] : func_pcs) {
+          out << "  " << func <<std::endl;
+          for (auto& [from, to] : pc_pairs) {
+            out << "    " << from << " -> " << to << std::endl;
+          }
+        }
+      }
+      out << "+++ Blames Ends +++\n" << std::endl;
+      // end debug
+
       for (auto& iter : ctx_node_map) {
         if(iter.lm_id == 0) {
           continue;
@@ -908,32 +947,56 @@ namespace Analysis {
     static void outputContext_v2(const std::string &file_name, VIEW_CTX_MAP &ctx_node_map,
                               blamed_pc_pairs_t* blames) {
       uint64_t num_blames = 0;
+      // std::cout << "CHECK POINT 1" << std::endl;
       for(auto& niter : ctx_node_map) {
         // std::cout << "f_offset vector size " << niter.function_offsets.size() << std::endl;
         // std::cout << "lm_ip vector size " << niter.lm_ips.size() << std::endl;
         // std::cout << "ip_weights map size " << niter.ip_weights.size() << std::endl;
         for(size_t i = 0; i < niter.function_offsets.size(); i++){
+          // std::cout << "func / ";
           uint64_t _func_offset = niter.function_offsets.at(i);
+          // std::cout << "lm_ip /";
           uintptr_t _blamed_pc = niter.lm_ips.at(i).first;
-          uint64_t _latency_samples = niter.latency_samples.at(i).second;
+          // std::cout << "get" << std::endl;
+          uint64_t _latency_samples = 0;
+          // std::cout << "CHECK POINT 2" << std::endl;
+          for (auto& [_b, _l] : niter.latency_samples[_func_offset]) {
+            // std::cout << "CHECK POINT 3" << std::endl;
+            if (_b == _blamed_pc) {
+              _latency_samples += _l;
+            }
+          }
+          // niter.latency_samples.at(i).second;
+
           // std::cout << i << "th func_offset " << niter.function_offsets.at(i) << std::endl;
           // std::cout << niter.lm_ips.at(i).first << " -> " << niter.lm_ips.at(i).second << std::endl;
           // std::cout << niter.latency_samples.at(i).first << " : " << niter.latency_samples.at(i).second << std::endl;
           if(_blamed_pc == 0){
+            // std::cout << "CHECK POINT 4" << std::endl;
             continue;
           }
+          // std::cout << "CHECK POINT 5" << std::endl;
           if(niter.ip_weights[_func_offset].find(_blamed_pc) == niter.ip_weights[_func_offset].end()) {
+            // std::cout << "CHECK POINT 6" << std::endl;
             niter.ip_weights[_func_offset][_blamed_pc] = _latency_samples;
           } else{
+            // std::cout << "CHECK POINT 7" << std::endl;
+            // if (niter.ip_weights.find(_func_offset) == niter.ip_weights.end()) {
+            //   std::cout << "CHECK POINT 7 ERROR" << std::endl;
+            // }
+            // std::cout << "lm: " << niter.lm_id << " _func_offset: " << _func_offset << " _blamed_pc: " << _blamed_pc << " += " << _latency_samples << std::endl;
             niter.ip_weights[_func_offset][_blamed_pc] += _latency_samples;
           }
           // std::cout << "ip_weights " << niter.ip_weights[niter.function_offsets.at(i)][niter.latency_samples.at(i).first] << std::endl;
         }
       }
-
+      // std::cout << "CHECK POINT 8" << std::endl;
       for(auto& niter : ctx_node_map) {
+        // std::cout << "CHECK POINT 9" << std::endl;
         for(auto& [f_offset, b_l] : niter.ip_weights) {
+          // std::cout << "CHECK POINT 10" << std::endl;
           for(auto& [b, latency_samples] : b_l) {
+            // std::cout << "CHECK POINT 11" << std::endl;
             num_blames += latency_samples;
           }
         }

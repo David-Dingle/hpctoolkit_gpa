@@ -237,7 +237,7 @@ class GPUAdvisor {
 
   void detailizeInstBlames(InstBlames &inst_blames);
 
-  void overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_blame);
+  void overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_blame, blamed_pc_pairs_t* blames);
 
   KernelStats readKernelStats(int mpi_rank, int thread_id);
 

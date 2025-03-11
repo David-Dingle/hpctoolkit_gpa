@@ -254,9 +254,12 @@ gpu_sample_process
         attribute_activity(host_op_entry, sample, cct_child);
       }
 
+      // start change
       // assemble the Pytorch Python States, cct_node p_id(for callpath), and the sample lm_ip for instruction relocating
-      // callpath_assemble(sample, host_op_node);
-      callpath_assemble(sample, host_op_node, external_id);
+      if (more_samples) {
+        callpath_assemble(sample, host_op_node, external_id);
+      }
+      // end change
 
     } else {
       PRINT("host_map_entry %lu not found\n", external_id);

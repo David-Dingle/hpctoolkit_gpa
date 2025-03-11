@@ -187,13 +187,13 @@ adaptor_result_t callpath_assemble_real(int32_t cct_node_persistent_id, uint64_t
   if (fp != NULL){
     uint64_t callpath_id = update_id_func();
     fprintf(fp, "id\n");
-    fprintf(fp, "%lu\n",callpath_id);
+    fprintf(fp, "%"PRIu64"\n",callpath_id);
 
     fprintf(fp, "ctx_id\n");
     fprintf(fp, "%d\n",cct_node_persistent_id);
 
     fprintf(fp, "gpu_correlation_id\n");
-    fprintf(fp, "%ld\n",gpu_correlation_id);    
+    fprintf(fp, "%"PRIu64"\n",gpu_correlation_id);    
 
     fprintf(fp, "num_states\n");
     fprintf(fp, "%lu\n",num_states);
@@ -305,7 +305,7 @@ adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_o
     fprintf(fp, "%d\n", cct_node_persistent_id);
 
     fprintf(fp, "activity_external_id\n");
-    fprintf(fp, "%ld\n", activity_external_id);
+    fprintf(fp, "%"PRIu64"\n", activity_external_id);
 
     fprintf(fp, "lm_id\n");
     fprintf(fp, "%u\n",lm_id);

@@ -1505,6 +1505,16 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
         inst_blames.emplace_back(InstructionBlame(to_inst, to_inst, to_struct, to_struct, 0,
                                                   stall_blame, lat_blame, efficiency, pred_true,
                                                   lat_blame_name));
+
+        // // Start change
+        // int to_func_addr = _vma_prop_map.at(to_node->lmIP()).function->address;
+        // VMA to_pcOffset = to_inst->pc - (to_func_addr);
+          
+        // std::cout << "LM_ID: " << to_node->lmId() << " from_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+        // std::cout << "LM_ID: " << to_node->lmId() << " to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+
+        // (*blames)[to_node->lmId()][to_func_addr].emplace_back(to_pcOffset, to_pcOffset);
+        // // end change
       }
     }
 
@@ -1614,18 +1624,6 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
           metric_name = detailizeExecBlame(from_inst, to_inst);
         } else {
           metric_name = detailizeMemBlame(from_inst);
-          // Start change
-
-          int from_func_addr = _vma_prop_map.at(from_vma).function->address;
-          int to_func_addr = _vma_prop_map.at(to_node->lmIP()).function->address;
-          VMA from_pcOffset = from_inst->pc - (from_func_addr);
-          VMA to_pcOffset = to_inst->pc - (to_func_addr);
-          
-          std::cout << "from_inst pc: " << std::dec << from_pcOffset << " Func_id: " << from_func_addr << ": " << _vma_prop_map.at(from_vma).function->name << std::dec << std::endl;
-          std::cout << "to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
-
-          (*blames)[from_node->lmId()][from_func_addr].emplace_back(from_pcOffset, to_pcOffset);
-          // end change
         }
 
         auto stall_blame_name = "BLAME " + metric_name.first;
@@ -1638,6 +1636,18 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
         inst_blames.emplace_back(InstructionBlame(
             from_inst, to_inst, from_struct, to_struct, distance[from_node], stall_blame, lat_blame,
             efficiency[from_node], pred_true[from_node], lat_blame_name));
+
+        // // Start change
+        // int from_func_addr = _vma_prop_map.at(from_vma).function->address;
+        // int to_func_addr = _vma_prop_map.at(to_node->lmIP()).function->address;
+        // VMA from_pcOffset = from_inst->pc - (from_func_addr);
+        // VMA to_pcOffset = to_inst->pc - (to_func_addr);
+          
+        // std::cout << "LM_ID: " << from_node->lmId() << " from_inst pc: " << std::dec << from_pcOffset << " Func_id: " << from_func_addr << ": " << _vma_prop_map.at(from_vma).function->name << std::dec << std::endl;
+        // std::cout << "LM_ID: " << from_node->lmId() << " to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+
+        // (*blames)[from_node->lmId()][from_func_addr].emplace_back(from_pcOffset, to_pcOffset);
+        // // end change
       }
     }
 
@@ -1669,6 +1679,16 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
       // one metric id is enough for inst blame analysis
       inst_blames.emplace_back(InstructionBlame(to_inst, to_inst, to_struct, to_struct, 0, stall,
                                                 lat, efficiency, pred_true, lat_blame_name));
+
+      // // Start change
+      // int to_func_addr = _vma_prop_map.at(to_node->lmIP()).function->address;
+      // VMA to_pcOffset = to_inst->pc - (to_func_addr);
+          
+      // std::cout << "LM_ID: " << to_node->lmId() << " from_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+      // std::cout << "LM_ID: " << to_node->lmId() << " to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+
+      // (*blames)[to_node->lmId()][to_func_addr].emplace_back(to_pcOffset, to_pcOffset);
+      // // end change
     }
 
     // Sync stall
@@ -1726,10 +1746,22 @@ void GPUAdvisor::blameCCTDepGraph(int mpi_rank, int thread_id,
     inst_blames.emplace_back(InstructionBlame(sync_inst, to_inst, sync_struct, to_struct, distance,
                                               sync_stall, sync_lat, efficiency, pred_true,
                                               lat_blame_name));
+
+    // // Start change
+    // int from_func_addr = _vma_prop_map.at(sync_node->lmIP()).function->address;
+    // int to_func_addr = _vma_prop_map.at(to_node->lmIP()).function->address;
+    // VMA from_pcOffset = sync_inst->pc - (from_func_addr);
+    // VMA to_pcOffset = to_inst->pc - (to_func_addr);
+          
+    // std::cout << "LM_ID: " << sync_node->lmId() << " from_inst pc: " << std::dec << from_pcOffset << " Func_id: " << from_func_addr << ": " << _vma_prop_map.at(sync_node->lmIP()).function->name << std::dec << std::endl;
+    // std::cout << "LM_ID: " << to_node->lmId() << " to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << _vma_prop_map.at(to_node->lmIP()).function->name << std::dec << std::endl;
+
+    // (*blames)[sync_node->lmId()][from_func_addr].emplace_back(from_pcOffset, to_pcOffset);
+    // // end change
   }
 }
 
-void GPUAdvisor::overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_blame) {
+void GPUAdvisor::overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_blame, blamed_pc_pairs_t* blames) {
   for (auto &inst_blame : inst_blames) {
     auto *from_inst = inst_blame.src_inst;
     auto *from_block = _vma_prop_map.at(from_inst->pc).block;
@@ -1751,6 +1783,18 @@ void GPUAdvisor::overlayInstBlames(InstBlames &inst_blames, KernelBlame &kernel_
     kernel_blame.lat_blame += inst_blame.lat_blame;
 
     kernel_blame.inst_blames.push_back(inst_blame);
+
+    // Start change
+    int from_func_addr = from_function->address;
+    int to_func_addr = to_function->address;
+    VMA from_pcOffset = from_inst->pc - (from_func_addr);
+    VMA to_pcOffset = to_inst->pc - (to_func_addr);
+          
+    std::cout << "LM_ID: " << _vma_prop_map.at(from_inst->pc).prof_node->lmId_real() << " from_inst pc: " << std::dec << from_pcOffset << " Func_id: " << from_func_addr << ": " << from_function->name << std::dec << std::endl;
+    std::cout << " to_inst pc: " << std::dec << to_pcOffset << " Func_id: " << to_func_addr << ": " << to_function->name << std::dec << std::endl;
+
+    (*blames)[_vma_prop_map.at(from_inst->pc).prof_node->lmId_real()][from_func_addr].emplace_back(from_pcOffset, to_pcOffset);
+    // end change
   }
 
   for (auto &inst_blame : kernel_blame.inst_blames) {
@@ -1918,7 +1962,7 @@ void GPUAdvisor::blame(CCTBlames &cct_blames, blamed_pc_pairs_t* blames) {
 
       // 5. Overlay blames
       auto &kernel_blame = cct_blames[mpi_rank][thread_id];
-      overlayInstBlames(inst_blames, kernel_blame);
+      overlayInstBlames(inst_blames, kernel_blame, blames);
 
       if (DEBUG_GPUADVISOR) {
         std::cout << "Inst blames: " << std::endl;
