@@ -297,7 +297,7 @@ adaptor_result_t callpath_assemble(gpu_activity_t * activity, cct_node_t* host_o
   gpu_function_id_map_entry_t *fid_map_entry = gpu_function_id_map_lookup(sinfo->function_id);
   assert(fid_map_entry);
   uintptr_t function_offset = gpu_function_id_map_entry_pc_get(fid_map_entry).lm_ip;
-  printf("LM_ID: %u; Func_addr: %lu; PC_Offset: %lu\n", lm_id, function_offset, lm_ip);
+  // printf("LM_ID: %u; Func_addr: %lu; PC_Offset: %lu\n", lm_id, function_offset, lm_ip);
 
   pthread_mutex_lock(&mutex);
   if (fp != NULL){
