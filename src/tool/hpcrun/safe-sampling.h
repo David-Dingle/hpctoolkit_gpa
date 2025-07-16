@@ -169,7 +169,9 @@ hpcrun_safe_exit(void)
 {
   thread_data_t *td = hpcrun_get_thread_data();
 
-  td->inside_hpcrun = 0;
+  if (td) {
+    td->inside_hpcrun = 0;
+  }
 }
 
 
